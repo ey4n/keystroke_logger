@@ -1,3 +1,14 @@
+# to do:
+1. Persistance layer - where to store :o
+2. Stress inducing mode - how to induce stress via the site? (timed task etc)
+
+# what to do with the data
+currently simply logging key up and key down events
+
+next steps: 
+identifying digraphs/trigraphs? 
+calculating dwell time, error rate etc? 
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
