@@ -23,13 +23,7 @@ const AVAILABLE_TESTS: TestConfig[] = [
     id: 'multitasking',
     name: 'Multitasking Test',
     description: 'Type while performing other tasks',
-    enabled: false,
-  },
-  {
-    id: 'errorProne',
-    name: 'Error-Prone Test',
-    description: 'Test with intentional distractions',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'lying',
