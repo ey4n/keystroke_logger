@@ -2,28 +2,118 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { KeystrokeDataDisplay } from '../KeystrokeDataDisplay';
-import { DEFAULT_TIMED_PARAGRAPH, DEFAULT_TIME_LIMIT } from '../../data/testParagraphs';
 
 interface TimedTestProps {
   onShowData: () => void;
   onClearData: () => void;
   showData: boolean;
-  targetParagraph?: string;
-  timeLimit?: number;
 }
 
-export function TimedTest({ 
-  onShowData, 
-  onClearData, 
-  showData,
-  targetParagraph = DEFAULT_TIMED_PARAGRAPH,
-  timeLimit = DEFAULT_TIME_LIMIT
-}: TimedTestProps) {
-  const [text, setText] = useState('');
-  const [timeLeft, setTimeLeft] = useState(timeLimit);
+interface FormData {
+  // Personal Details
+  fullName: string;
+  email: string;
+  age: string;
+  occupation: string;
+  
+  // Longer Answer Questions
+  morningRoutine: string;
+  favoriteMemory: string;
+  weekendActivity: string;
+}
+
+const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="mb-6">
+    <h3 className="text-md font-semibold text-gray-700 mb-3">
+      {title}
+    </h3>
+    <div className="space-y-4">
+      {children}
+    </div>
+  </div>
+);
+
+const ShortInputField = ({ 
+  label, 
+  value,
+  onChange,
+  onKeyDown,
+  onKeyUp,
+  disabled
+}: { 
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onKeyUp: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  disabled: boolean;
+}) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+    </label>
+    <input
+      type="text"
+      value={value}
+      onChange={onChange}
+      onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
+      disabled={disabled}
+      className={`w-full p-2 border-2 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all ${
+        disabled ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : 'border-gray-300'
+      }`}
+    />
+  </div>
+);
+
+const LongTextArea = ({ 
+  label, 
+  value,
+  onChange,
+  onKeyDown,
+  onKeyUp,
+  disabled
+}: { 
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  disabled: boolean;
+}) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+    </label>
+    <textarea
+      value={value}
+      onChange={onChange}
+      onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
+      disabled={disabled}
+      rows={3}
+      className={`w-full p-2 border-2 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all resize-none ${
+        disabled ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : 'border-gray-300'
+      }`}
+    />
+  </div>
+);
+
+export function TimedTest({ onShowData, onClearData, showData }: TimedTestProps) {
+  const [formData, setFormData] = useState<FormData>({
+    fullName: '',
+    email: '',
+    age: '',
+    occupation: '',
+    morningRoutine: '',
+    favoriteMemory: '',
+    weekendActivity: '',
+  });
+
+  const [timeLeft, setTimeLeft] = useState(120);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerExpired, setTimerExpired] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   
   const { 
     logKeyDown, 
@@ -59,33 +149,34 @@ export function TimedTest({
     };
   }, [isTimerActive, timeLeft]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (timerExpired || isCompleted) return;
+  const handleInputChange = (field: keyof FormData) => (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    if (timerExpired) return;
     
-    const newText = e.target.value;
-    setText(newText);
+    setFormData(prev => ({ ...prev, [field]: e.target.value }));
     
     // Start timer on first keystroke
-    if (!isTimerActive && text.length === 0) {
+    if (!hasStarted) {
+      setHasStarted(true);
       setIsTimerActive(true);
-    }
-    
-    // Check if user completed the paragraph
-    if (newText === targetParagraph) {
-      setIsCompleted(true);
-      setIsTimerActive(false);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
     }
   };
 
   const handleClear = () => {
-    setText('');
+    setFormData({
+      fullName: '',
+      email: '',
+      age: '',
+      occupation: '',
+      morningRoutine: '',
+      favoriteMemory: '',
+      weekendActivity: '',
+    });
     setIsTimerActive(false);
     setTimerExpired(false);
-    setIsCompleted(false);
-    setTimeLeft(timeLimit);
+    setHasStarted(false);
+    setTimeLeft(120);
     clearLogs();
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -93,11 +184,15 @@ export function TimedTest({
     onClearData();
   };
 
+  // Calculate completion percentage
+  const totalFields = Object.keys(formData).length;
+  const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
+  const completionPercentage = Math.round((filledFields / totalFields) * 100);
+
   return (
     <div>
       {/* Timer Status */}
       <div className={`mb-6 p-4 rounded-lg border-2 ${
-        isCompleted ? 'bg-green-50 border-green-300' : 
         timerExpired ? 'bg-red-50 border-red-300' : 
         isTimerActive ? 'bg-orange-50 border-orange-300' : 
         'bg-blue-50 border-blue-300'
@@ -105,62 +200,104 @@ export function TimedTest({
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-semibold text-gray-800">
-              {isCompleted ? '✅ Completed!' : 
-               timerExpired ? '⏰ Time\'s Up!' : 
+              {timerExpired ? '⏰ Time\'s Up!' : 
                isTimerActive ? '⏱️ Timer Running' : 
                '⏱️ Timer Ready'}
             </h3>
             <p className="text-sm text-gray-600">
-              {isCompleted ? 'Great job! You finished in time.' : 
-               timerExpired ? 'You ran out of time!' : 
-               isTimerActive ? 'Type quickly!' : 
-               'Start typing to begin'}
+              {timerExpired ? 'You ran out of time!' : 
+               isTimerActive ? 'Fill out as much as you can!' : 
+               'Start typing to begin the 120-second challenge'}
             </p>
           </div>
-          <div className={`text-4xl font-bold ${
-            isCompleted ? 'text-green-600' : 
-            timerExpired ? 'text-red-600' : 
-            timeLeft <= 10 ? 'text-red-600' : 
-            timeLeft <= 30 ? 'text-orange-600' : 
-            'text-blue-600'
-          }`}>
-            {timeLeft}s
+          <div className="text-right">
+            <div className={`text-4xl font-bold ${
+              timerExpired ? 'text-red-600' : 
+              timeLeft <= 10 ? 'text-red-600' : 
+              timeLeft <= 30 ? 'text-orange-600' : 
+              'text-blue-600'
+            }`}>
+              {timeLeft}s
+            </div>
+            <div className="text-sm text-gray-600 mt-1">
+              {completionPercentage}% Complete
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Target Paragraph */}
-      <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-        <h3 className="font-semibold text-gray-800 mb-2">Type this paragraph:</h3>
-        <p className="font-mono text-sm text-gray-700 leading-relaxed">
-          {targetParagraph}
+      {/* Instructions */}
+      <div className="mb-6 p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
+        <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
+        <p className="text-sm text-gray-700">
+          You have <strong>120 seconds</strong> to fill out as many fields as possible. 
+          The timer starts as soon as you begin typing. Answer quickly but naturally!
         </p>
-        <div className="mt-2 text-xs text-gray-600">
-          Progress: {text.length} / {targetParagraph.length} characters
-        </div>
       </div>
 
-      {/* Text Input */}
-      <div className="mb-6">
-        <label htmlFor="textInput" className="block text-sm font-medium text-gray-700 mb-2">
-          Type here:
-        </label>
-        <textarea
-          id="textInput"
-          value={text}
-          onChange={handleChange}
-          onKeyDown={logKeyDown}
-          onKeyUp={logKeyUp}
-          disabled={timerExpired || isCompleted}
-          className={`w-full h-48 p-4 border-2 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all resize-none font-mono ${
-            (timerExpired || isCompleted) ? 'bg-gray-100 border-red-300 cursor-not-allowed' : 'border-gray-300'
-          }`}
-          placeholder={
-            timerExpired ? "Time expired! Clear data to try again..." :
-            isCompleted ? "Completed! Clear data to try again..." :
-            "Start typing the paragraph above..."
-          }
-        />
+      {/* Form */}
+      <div className="max-h-[500px] overflow-y-auto pr-2 mb-6">
+        <FormSection title="Personal Details">
+          <ShortInputField
+            label="Full Name"
+            value={formData.fullName}
+            onChange={handleInputChange('fullName')}
+            onKeyDown={logKeyDown as any}
+            onKeyUp={logKeyUp as any}
+            disabled={timerExpired}
+          />
+          <ShortInputField
+            label="Email Address"
+            value={formData.email}
+            onChange={handleInputChange('email')}
+            onKeyDown={logKeyDown as any}
+            onKeyUp={logKeyUp as any}
+            disabled={timerExpired}
+          />
+          <ShortInputField
+            label="Age"
+            value={formData.age}
+            onChange={handleInputChange('age')}
+            onKeyDown={logKeyDown as any}
+            onKeyUp={logKeyUp as any}
+            disabled={timerExpired}
+          />
+          <ShortInputField
+            label="Occupation"
+            value={formData.occupation}
+            onChange={handleInputChange('occupation')}
+            onKeyDown={logKeyDown as any}
+            onKeyUp={logKeyUp as any}
+            disabled={timerExpired}
+          />
+        </FormSection>
+
+        <FormSection title="Tell Us About Yourself">
+          <LongTextArea
+            label="Describe your typical morning routine"
+            value={formData.morningRoutine}
+            onChange={handleInputChange('morningRoutine')}
+            onKeyDown={logKeyDown as any}
+            onKeyUp={logKeyUp as any}
+            disabled={timerExpired}
+          />
+          <LongTextArea
+            label="What's your favorite memory from the past year?"
+            value={formData.favoriteMemory}
+            onChange={handleInputChange('favoriteMemory')}
+            onKeyDown={logKeyDown as any}
+            onKeyUp={logKeyUp as any}
+            disabled={timerExpired}
+          />
+          <LongTextArea
+            label="How do you typically spend your weekends?"
+            value={formData.weekendActivity}
+            onChange={handleInputChange('weekendActivity')}
+            onKeyDown={logKeyDown as any}
+            onKeyUp={logKeyUp as any}
+            disabled={timerExpired}
+          />
+        </FormSection>
       </div>
 
       {/* Action Buttons */}
