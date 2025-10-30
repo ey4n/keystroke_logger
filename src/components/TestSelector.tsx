@@ -31,6 +31,12 @@ const AVAILABLE_TESTS: TestConfig[] = [
     description: 'Test with intentional distractions',
     enabled: false,
   },
+  {
+    id: 'lying',
+    name: 'Lying Test',
+    description: 'Lie on some form fields',
+    enabled: true,
+  },
 ];
 
 export function TestSelector({ currentTest, onTestChange }: TestSelectorProps) {

@@ -1,13 +1,13 @@
-// src/hooks/useKeystrokeLogger.ts
+// hooks/useKeystrokeLogger.ts
 import { useRef, useCallback } from 'react';
-import type { KeystrokeEvent } from '../types/keystroke';
+import { KeystrokeEvent } from '../types/keystroke';
 
 export interface KeystrokeAnalytics {
   totalEvents: number;
   keydownCount: number;
   keyupCount: number;
-  duration: number; // in milliseconds
-  averageSpeed: number; // keys per minute
+  duration: number;
+  averageSpeed: number;
   uniqueKeys: number;
 }
 
@@ -15,20 +15,26 @@ export function useKeystrokeLogger() {
   const keystrokeData = useRef<KeystrokeEvent[]>([]);
   const startTime = useRef<number | null>(null);
 
-  const logKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  // Change the type to accept both HTMLTextAreaElement and HTMLInputElement
+  const logKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const event: KeystrokeEvent = {
       key: e.key,
       eventType: 'keydown',
       timestamp: Date.now(),
       code: e.code,
     };
-    if (keystrokeData.current.length === 0) startTime.current = Date.now();
+    
+    if (keystrokeData.current.length === 0) {
+      startTime.current = Date.now();
+    }
+    
     keystrokeData.current.push(event);
     console.log('KeyDown:', event);
+    
     return event;
   }, []);
 
-  const logKeyUp = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const logKeyUp = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const event: KeystrokeEvent = {
       key: e.key,
       eventType: 'keyup',
@@ -37,6 +43,7 @@ export function useKeystrokeLogger() {
     };
     keystrokeData.current.push(event);
     console.log('KeyUp:', event);
+    
     return event;
   }, []);
 

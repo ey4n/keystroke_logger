@@ -3,6 +3,7 @@ import { TestType } from '../types/keystroke';
 import { TestSelector } from './TestSelector';
 import { TimedTest } from './tests/TimedTest';
 import { Free } from './tests/Free';
+import { LyingTest } from './tests/LyingTest';
 
 export default function KeystrokeLogger() {
   const [currentTest, setCurrentTest] = useState<TestType>('free');
@@ -34,11 +35,13 @@ export default function KeystrokeLogger() {
       case 'timed':
         return <TimedTest {...commonProps} />;
       case 'multitasking':
-        return <div className="text-center text-gray-500 py-8">Multitasking test coming soon...</div>;
+        return <div className="text-center text-gray-500 py-8">Multitasking test to be done</div>;
       case 'errorProne':
-        return <div className="text-center text-gray-500 py-8">Error-prone test coming soon...</div>;
+        return <div className="text-center text-gray-500 py-8">Error-prone test to be done</div>;
+      case 'lying':
+        return <LyingTest {...commonProps} />;
       default:
-        return <TimedTest {...commonProps} />;
+        return <Free {...commonProps} />;
     }
   };
 
