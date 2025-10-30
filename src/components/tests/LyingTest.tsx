@@ -1,3 +1,4 @@
+// components/tests/LyingTest.tsx
 import React, { useState, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { KeystrokeDataDisplay } from '../KeystrokeDataDisplay';
@@ -9,88 +10,30 @@ interface LyingTestProps {
 }
 
 interface FormData {
-  // Identity
-  firstName: string;
-  lastName: string;
-  
-  // Physical characteristics
-  gender: string;
-  weight: string;
-  height: string;
-  eyeColor: string;
-  hairColor: string;
-  shoeSize: string;
-  
-  // Birth
-  age: string;
-  dayOfBirth: string;
-  monthOfBirth: string;
-  yearOfBirth: string;
-  zodiacSign: string;
-  birthRegion: string;
-  birthProvince: string;
-  birthCity: string;
-  citizenship: string;
-  nativeLanguage: string;
-  
-  // Residence
-  residenceRegion: string;
-  residenceProvince: string;
-  residenceCity: string;
-  residenceAddress: string;
-  
-  // Contacts
+  fullName: string;
   email: string;
-  phoneNumber: string;
-  phoneProvider: string;
-  
-  // Education
-  primarySchoolName: string;
-  middleSchoolName: string;
-  highSchoolName: string;
-  highSchoolCity: string;
-  highSchoolGradMark: string;
-  universityLocation: string;
-  universityDepartment: string;
-  universityFaculty: string;
-  
-  // Interests
-  mobilePhoneBrand: string;
-  mobilePhoneColor: string;
-  carBrand: string;
-  carColor: string;
-  practicedSports: string;
-  instrumentsPlayed: string;
-  animalsOwned: string;
-  holidayCities: string;
-  newYearCities: string;
-  
-  // Relatives and friends
-  motherFirstName: string;
-  motherLastName: string;
-  fatherFirstName: string;
-  grandparentName: string;
-  familyMemberName: string;
-  lastPartnerName: string;
-  closeFriendName: string;
+  age: string;
+  occupation: string;
+  morningRoutine: string;
+  favoriteMemory: string;
+  weekendActivity: string;
 }
 
 type FieldMode = 'truth' | 'lie';
 
 const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="mb-6">
-    <h3 className="text-lg font-semibold text-gray-800 mb-3 pb-2 border-b-2 border-indigo-200">
+    <h3 className="text-md font-semibold text-gray-700 mb-3">
       {title}
     </h3>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-4">
       {children}
     </div>
   </div>
 );
 
-const InputField = ({ 
+const ShortInputField = ({ 
   label, 
-  field, 
   value,
   onChange,
   onKeyDown,
@@ -98,7 +41,6 @@ const InputField = ({
   mode 
 }: { 
   label: string; 
-  field: string; 
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
@@ -128,20 +70,53 @@ const InputField = ({
   );
 };
 
+const LongTextArea = ({ 
+  label, 
+  value,
+  onChange,
+  onKeyDown,
+  onKeyUp,
+  mode
+}: { 
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  mode: FieldMode;
+}) => {
+  const isTruth = mode === 'truth';
+  
+  return (
+    <div>
+      <label className={`block text-sm font-medium mb-1 ${isTruth ? 'text-green-700' : 'text-red-700'}`}>
+        {label} {isTruth ? '✓ (Tell Truth)' : '✗ (Tell Lie)'}
+      </label>
+      <textarea
+        value={value}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+        onKeyUp={onKeyUp}
+        rows={3}
+        className={`w-full p-2 border-2 rounded-lg focus:ring-2 outline-none transition-all resize-none ${
+          isTruth 
+            ? 'border-green-300 bg-green-50 focus:border-green-500 focus:ring-green-200' 
+            : 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200'
+        }`}
+      />
+    </div>
+  );
+};
+
 export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps) {
   const [formData, setFormData] = useState<FormData>({
-    firstName: '', lastName: '', gender: '', weight: '', height: '', eyeColor: '',
-    hairColor: '', shoeSize: '', age: '', dayOfBirth: '', monthOfBirth: '',
-    yearOfBirth: '', zodiacSign: '', birthRegion: '', birthProvince: '',
-    birthCity: '', citizenship: '', nativeLanguage: '', residenceRegion: '',
-    residenceProvince: '', residenceCity: '', residenceAddress: '', email: '',
-    phoneNumber: '', phoneProvider: '', primarySchoolName: '', middleSchoolName: '',
-    highSchoolName: '', highSchoolCity: '', highSchoolGradMark: '',
-    universityLocation: '', universityDepartment: '', universityFaculty: '',
-    mobilePhoneBrand: '', mobilePhoneColor: '', carBrand: '', carColor: '',
-    practicedSports: '', instrumentsPlayed: '', animalsOwned: '', holidayCities: '',
-    newYearCities: '', motherFirstName: '', motherLastName: '', fatherFirstName: '',
-    grandparentName: '', familyMemberName: '', lastPartnerName: '', closeFriendName: ''
+    fullName: '',
+    email: '',
+    age: '',
+    occupation: '',
+    morningRoutine: '',
+    favoriteMemory: '',
+    weekendActivity: '',
   });
 
   // Randomly assign truth/lie to each field (memoized so it doesn't change on re-render)
@@ -154,37 +129,42 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
     });
     
     return modes;
-  }, []); // Empty dependency array means this only runs once
+  }, []);
 
   const { logKeyDown, logKeyUp, clearLogs, getLogs, getAnalytics, exportAsJSON, exportAsCSV } = useKeystrokeLogger();
 
-  const handleInputChange = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
   };
 
   const handleClear = () => {
     setFormData({
-      firstName: '', lastName: '', gender: '', weight: '', height: '', eyeColor: '',
-      hairColor: '', shoeSize: '', age: '', dayOfBirth: '', monthOfBirth: '',
-      yearOfBirth: '', zodiacSign: '', birthRegion: '', birthProvince: '',
-      birthCity: '', citizenship: '', nativeLanguage: '', residenceRegion: '',
-      residenceProvince: '', residenceCity: '', residenceAddress: '', email: '',
-      phoneNumber: '', phoneProvider: '', primarySchoolName: '', middleSchoolName: '',
-      highSchoolName: '', highSchoolCity: '', highSchoolGradMark: '',
-      universityLocation: '', universityDepartment: '', universityFaculty: '',
-      mobilePhoneBrand: '', mobilePhoneColor: '', carBrand: '', carColor: '',
-      practicedSports: '', instrumentsPlayed: '', animalsOwned: '', holidayCities: '',
-      newYearCities: '', motherFirstName: '', motherLastName: '', fatherFirstName: '',
-      grandparentName: '', familyMemberName: '', lastPartnerName: '', closeFriendName: ''
+      fullName: '',
+      email: '',
+      age: '',
+      occupation: '',
+      morningRoutine: '',
+      favoriteMemory: '',
+      weekendActivity: '',
     });
     clearLogs();
     onClearData();
   };
 
-  const renderInputField = (label: string, field: keyof FormData) => (
-    <InputField
+  const renderShortInput = (label: string, field: keyof FormData) => (
+    <ShortInputField
       label={label}
-      field={field}
+      value={formData[field]}
+      onChange={handleInputChange(field)}
+      onKeyDown={logKeyDown as any}
+      onKeyUp={logKeyUp as any}
+      mode={fieldModes[field]}
+    />
+  );
+
+  const renderLongText = (label: string, field: keyof FormData) => (
+    <LongTextArea
+      label={label}
       value={formData[field]}
       onChange={handleInputChange(field)}
       onKeyDown={logKeyDown as any}
@@ -216,77 +196,17 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
       </div>
 
       <div className="max-h-[600px] overflow-y-auto pr-2">
-        <FormSection title="Identity">
-          {renderInputField("First Name", "firstName")}
-          {renderInputField("Last Name", "lastName")}
+        <FormSection title="Personal Details">
+          {renderShortInput("Full Name", "fullName")}
+          {renderShortInput("Email Address", "email")}
+          {renderShortInput("Age", "age")}
+          {renderShortInput("Occupation", "occupation")}
         </FormSection>
 
-        <FormSection title="Physical Characteristics">
-          {renderInputField("Gender", "gender")}
-          {renderInputField("Weight (kg)", "weight")}
-          {renderInputField("Height (cm)", "height")}
-          {renderInputField("Eye Color", "eyeColor")}
-          {renderInputField("Hair Color", "hairColor")}
-          {renderInputField("Shoe Size", "shoeSize")}
-        </FormSection>
-
-        <FormSection title="Birth Information">
-          {renderInputField("Age", "age")}
-          {renderInputField("Day of Birth", "dayOfBirth")}
-          {renderInputField("Month of Birth", "monthOfBirth")}
-          {renderInputField("Year of Birth", "yearOfBirth")}
-          {renderInputField("Zodiac Sign", "zodiacSign")}
-          {renderInputField("Birth Region", "birthRegion")}
-          {renderInputField("Birth Province", "birthProvince")}
-          {renderInputField("Birth City", "birthCity")}
-          {renderInputField("Citizenship", "citizenship")}
-          {renderInputField("Native Language", "nativeLanguage")}
-        </FormSection>
-
-        <FormSection title="Residence">
-          {renderInputField("Region", "residenceRegion")}
-          {renderInputField("Province", "residenceProvince")}
-          {renderInputField("City", "residenceCity")}
-          {renderInputField("Address", "residenceAddress")}
-        </FormSection>
-
-        <FormSection title="Contacts">
-          {renderInputField("Email", "email")}
-          {renderInputField("Phone Number", "phoneNumber")}
-          {renderInputField("Phone Service Provider", "phoneProvider")}
-        </FormSection>
-
-        <FormSection title="Education">
-          {renderInputField("Primary School City", "primarySchoolName")}
-          {renderInputField("Middle School City", "middleSchoolName")}
-          {renderInputField("High School Name", "highSchoolName")}
-          {renderInputField("High School City", "highSchoolCity")}
-          {renderInputField("Graduation Mark", "highSchoolGradMark")}
-          {renderInputField("University Location", "universityLocation")}
-          {renderInputField("Department", "universityDepartment")}
-          {renderInputField("Faculty Attended", "universityFaculty")}
-        </FormSection>
-
-        <FormSection title="Interests">
-          {renderInputField("Mobile Phone Brand", "mobilePhoneBrand")}
-          {renderInputField("Mobile Phone Color", "mobilePhoneColor")}
-          {renderInputField("Car Brand", "carBrand")}
-          {renderInputField("Car Color", "carColor")}
-          {renderInputField("Practiced Sports", "practicedSports")}
-          {renderInputField("Instruments Played", "instrumentsPlayed")}
-          {renderInputField("Animals Owned", "animalsOwned")}
-          {renderInputField("Holiday Cities", "holidayCities")}
-          {renderInputField("New Year's Eve Cities", "newYearCities")}
-        </FormSection>
-
-        <FormSection title="Relatives and Friends">
-          {renderInputField("Mother's First Name", "motherFirstName")}
-          {renderInputField("Mother's Last Name", "motherLastName")}
-          {renderInputField("Father's First Name", "fatherFirstName")}
-          {renderInputField("Grandparent's Name", "grandparentName")}
-          {renderInputField("Family Member Name", "familyMemberName")}
-          {renderInputField("Last Partner's Name", "lastPartnerName")}
-          {renderInputField("Close Friend's Name", "closeFriendName")}
+        <FormSection title="Tell Us About Yourself">
+          {renderLongText("Describe your typical morning routine", "morningRoutine")}
+          {renderLongText("What's your favorite memory from the past year?", "favoriteMemory")}
+          {renderLongText("How do you typically spend your weekends?", "weekendActivity")}
         </FormSection>
       </div>
 
@@ -316,4 +236,3 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
     </div>
   );
 }
-export {};
