@@ -16,5 +16,12 @@
   "bugs": {
     "url": "https://github.com/ey4n/keystroke_logger/issues"
   },
-  "homepage": "https://github.com/ey4n/keystroke_logger#readme"
+  "homepage": "https://github.com/ey4n/keystroke_logger#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.79.0",
+    "react-scripts": "^5.0.1"
+  },
+  "devDependencies": {
+    "supabase": "^2.54.11"
+  }
 }
