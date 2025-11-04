@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { KeystrokeEvent } from '../types/keystroke';
 import { KeystrokeAnalytics } from '../hooks/useKeystrokeLogger';
@@ -10,21 +9,21 @@ interface KeystrokeDataDisplayProps {
   onExportCSV?: () => void;
 }
 
-export function KeystrokeDataDisplay({ 
-  events, 
+export function KeystrokeDataDisplay({
+  events,
   analytics,
   onExportJSON,
-  onExportCSV 
+  onExportCSV,
 }: KeystrokeDataDisplayProps) {
   return (
     <div className="mt-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-      {/* Header with Analytics */}
+      {/* ===== HEADER ===== */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-800">
             Keystroke Data ({events.length} events)
           </h2>
-          
+
           {/* Export Buttons */}
           {(onExportJSON || onExportCSV) && events.length > 0 && (
             <div className="flex gap-2">
@@ -48,7 +47,7 @@ export function KeystrokeDataDisplay({
           )}
         </div>
 
-        {/* Analytics Summary */}
+        {/* ===== ANALYTICS SUMMARY ===== */}
         {analytics && events.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <div className="bg-white p-3 rounded border border-gray-200">
@@ -79,33 +78,62 @@ export function KeystrokeDataDisplay({
         )}
       </div>
 
-      {/* Data Table */}
+      {/* ===== DATA TABLE ===== */}
       <div className="max-h-96 overflow-y-auto">
         {events.length === 0 ? (
           <p className="text-gray-500 italic">No data captured yet. Start typing!</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="w-full text-sm border-collapse">
             <thead className="bg-gray-200 sticky top-0">
               <tr>
-                <th className="text-left p-2 font-semibold">#</th>
-                <th className="text-left p-2 font-semibold">Event</th>
-                <th className="text-left p-2 font-semibold">Key</th>
-                <th className="text-left p-2 font-semibold">Code</th>
-                <th className="text-left p-2 font-semibold">Timestamp</th>
+                <th className="p-2 text-left font-semibold">#</th>
+                <th className="p-2 text-left font-semibold">Event</th>
+                <th className="p-2 text-left font-semibold">Key</th>
+                <th className="p-2 text-left font-semibold">Code</th>
+                <th className="p-2 text-left font-semibold">Field</th>
+                <th className="p-2 text-left font-semibold">Challenge</th>
+                <th className="p-2 text-left font-semibold">Session</th>
+                <th className="p-2 text-left font-semibold">Elapsed (ms)</th>
+                <th className="p-2 text-left font-semibold">Timestamp</th>
+                <th className="p-2 text-left font-semibold">Device Info</th>
               </tr>
             </thead>
             <tbody>
-              {events.map((event, index) => (
-                <tr key={index} className="border-b border-gray-200 hover:bg-gray-100">
+              {events.map((e, index) => (
+                <tr
+                  key={index}
+                  className="border-b border-gray-200 hover:bg-gray-100"
+                >
                   <td className="p-2">{index + 1}</td>
                   <td className="p-2">
-                    <span className={event.eventType === 'keydown' ? 'text-green-600' : 'text-blue-600'}>
-                      {event.eventType}
+                    <span
+                      className={
+                        e.eventType === 'keydown'
+                          ? 'text-green-600'
+                          : 'text-blue-600'
+                      }
+                    >
+                      {e.eventType}
                     </span>
                   </td>
-                  <td className="p-2 font-mono">{event.key}</td>
-                  <td className="p-2 font-mono text-xs">{event.code}</td>
-                  <td className="p-2 font-mono text-xs">{event.timestamp}</td>
+                  <td className="p-2 font-mono">{e.key}</td>
+                  <td className="p-2 font-mono text-xs">{e.code}</td>
+                  <td className="p-2 text-xs text-gray-700">
+                    {e.fieldName ?? '-'}
+                  </td>
+                  <td className="p-2 text-xs text-gray-700">
+                    {e.challengeId ?? '-'}
+                  </td>
+                  <td className="p-2 text-xs text-gray-700">
+                    {e.sessionId ? e.sessionId.slice(-6) : '-'}
+                  </td>
+                  <td className="p-2 text-xs text-gray-700">
+                    {e.elapsedSinceStart ?? '-'}
+                  </td>
+                  <td className="p-2 font-mono text-xs">{e.timestamp}</td>
+                  <td className="p-2 text-[10px] text-gray-600 truncate max-w-[180px]">
+                    {e.deviceInfo ?? '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>

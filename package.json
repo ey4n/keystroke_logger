@@ -1,0 +1,20 @@
+{
+  "name": "keystroke_logger",
+  "version": "1.0.0",
+  "description": "<img width=\"1384\" height=\"787\" alt=\"Screenshot 2025-10-01 at 4 48 19 PM\" src=\"https://github.com/user-attachments/assets/5e661049-62d9-4d1d-be74-eed212c0beaf\" />",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ey4n/keystroke_logger.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ey4n/keystroke_logger/issues"
+  },
+  "homepage": "https://github.com/ey4n/keystroke_logger#readme"
+}

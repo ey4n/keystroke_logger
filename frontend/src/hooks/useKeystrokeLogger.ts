@@ -11,50 +11,87 @@ export interface KeystrokeAnalytics {
   uniqueKeys: number;
 }
 
+// simple uuid-ish for session grouping
+function genSessionId() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 export function useKeystrokeLogger() {
   const keystrokeData = useRef<KeystrokeEvent[]>([]);
   const startTime = useRef<number | null>(null);
 
+  // NEW context refs
+  const sessionIdRef = useRef<string>(genSessionId());
+  const currentFieldRef = useRef<string | undefined>(undefined);
+  const activeChallengeIdRef = useRef<number | null>(null);
+  const deviceInfoRef = useRef<string>(navigator.userAgent);
+
+  // expose setters so components can tell us which field/challenge is active
+  const setFieldName = useCallback((name?: string) => {
+    currentFieldRef.current = name;
+  }, []);
+
+  const setActiveChallenge = useCallback((id: number | null) => {
+    activeChallengeIdRef.current = id;
+  }, []);
+
   // Change the type to accept both HTMLTextAreaElement and HTMLInputElement
   const logKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    const now = Date.now();
+    if (keystrokeData.current.length === 0) {
+      startTime.current = now;
+    }
     const event: KeystrokeEvent = {
       key: e.key,
       eventType: 'keydown',
-      timestamp: Date.now(),
+      timestamp: now,
       code: e.code,
+
+      // NEW context
+      sessionId: sessionIdRef.current,
+      fieldName: currentFieldRef.current,
+      challengeId: activeChallengeIdRef.current,
+      elapsedSinceStart: startTime.current ? now - startTime.current : 0,
+      deviceInfo: deviceInfoRef.current,
     };
-    
-    if (keystrokeData.current.length === 0) {
-      startTime.current = Date.now();
-    }
-    
+
     keystrokeData.current.push(event);
-    console.log('KeyDown:', event);
-    
+    // console.log('KeyDown:', event);
     return event;
   }, []);
 
   const logKeyUp = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    const now = Date.now();
     const event: KeystrokeEvent = {
       key: e.key,
       eventType: 'keyup',
-      timestamp: Date.now(),
+      timestamp: now,
       code: e.code,
+
+      // NEW context
+      sessionId: sessionIdRef.current,
+      fieldName: currentFieldRef.current,
+      challengeId: activeChallengeIdRef.current,
+      elapsedSinceStart: startTime.current ? now - startTime.current : 0,
+      deviceInfo: deviceInfoRef.current,
     };
+
     keystrokeData.current.push(event);
-    console.log('KeyUp:', event);
-    
+    // console.log('KeyUp:', event);
     return event;
   }, []);
 
   const clearLogs = useCallback(() => {
     keystrokeData.current = [];
     startTime.current = null;
-    console.log('Keystroke data cleared');
+
+    // NEW: start a fresh session
+    sessionIdRef.current = genSessionId();
+    activeChallengeIdRef.current = null;
+    // console.log('Keystroke data cleared');
   }, []);
 
   const getLogCount = useCallback(() => keystrokeData.current.length, []);
-
   const getLogs = useCallback(() => [...keystrokeData.current], []);
 
   const getAnalytics = useCallback(() => {
@@ -69,7 +106,7 @@ export function useKeystrokeLogger() {
     if (logs.length > 0 && startTime.current) {
       const lastTimestamp = logs[logs.length - 1].timestamp;
       duration = lastTimestamp - startTime.current;
-      if (duration > 0) averageSpeed = (keydownEvents.length / duration) * 60000;
+      if (duration > 0) averageSpeed = (keydownEvents.length / duration) * 60000; // KPM
     }
 
     return {
@@ -98,9 +135,21 @@ export function useKeystrokeLogger() {
   }, [getAnalytics]);
 
   const exportAsCSV = useCallback(() => {
-    const headers = ['Index', 'Event Type', 'Key', 'Code', 'Timestamp'];
+    const headers = [
+      'Index','Event Type','Key','Code','Timestamp',
+      'SessionId','FieldName','ChallengeId','ElapsedSinceStart','DeviceInfo'
+    ];
     const rows = keystrokeData.current.map((event, index) => [
-      index + 1, event.eventType, event.key, event.code, event.timestamp,
+      index + 1,
+      event.eventType,
+      event.key,
+      event.code,
+      event.timestamp,
+      event.sessionId ?? '',
+      event.fieldName ?? '',
+      event.challengeId ?? '',
+      event.elapsedSinceStart ?? '',
+      (event.deviceInfo ?? '').replace(/,/g, ';'), // avoid CSV break
     ]);
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -138,8 +187,15 @@ export function useKeystrokeLogger() {
   }, []);
 
   return {
+    // logging
     logKeyDown,
     logKeyUp,
+
+    // session / context controls (NEW)
+    setFieldName,
+    setActiveChallenge,
+
+    // utilities
     clearLogs,
     keystrokeData: keystrokeData.current,
     getLogCount,

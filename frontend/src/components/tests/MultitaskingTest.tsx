@@ -29,6 +29,18 @@ interface Challenge {
   inkColor?: string;
 }
 
+// ---- Pace/limits (edit these to make it faster/slower) -----------------
+
+const PACE = {
+  minDelayMs: 8000,      // was 3000 → now 8s minimum between challenges
+  maxDelayMs: 14000,     // was 7000 → now up to 14s
+  perChallengeSecs: 10,  // was 5  → give 10s to answer
+  maxChallenges: 10,     // allow more than 3 (set to any number or Infinity)
+} as const;
+// -----------------------------------------------------------------------
+
+const normalize = (s: string) => s.trim().toLowerCase();
+
 const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <div className="mb-6">
     <h3 className="text-md font-semibold text-gray-700 mb-3">{title}</h3>
@@ -36,19 +48,23 @@ const FormSection = ({ title, children }: { title: string; children: React.React
   </div>
 );
 
-const ShortInputField = ({ 
-  label, 
+const ShortInputField = ({
+  label,
   value,
   onChange,
   onKeyDown,
   onKeyUp,
+  onFocus,
+  onBlur,
   disabled
-}: { 
+}: {
   label: string;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onKeyUp: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   disabled: boolean;
 }) => (
   <div>
@@ -59,6 +75,8 @@ const ShortInputField = ({
       onChange={onChange}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
+      onFocus={onFocus}     /* 👈 Added */
+      onBlur={onBlur}       /* 👈 Added */
       disabled={disabled}
       className={`w-full p-2 border-2 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all ${
         disabled ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : 'border-gray-300'
@@ -67,19 +85,24 @@ const ShortInputField = ({
   </div>
 );
 
-const LongTextArea = ({ 
-  label, 
+
+const LongTextArea = ({
+  label,
   value,
   onChange,
   onKeyDown,
   onKeyUp,
+  onFocus,
+  onBlur,
   disabled
-}: { 
+}: {
   label: string;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   disabled: boolean;
 }) => (
   <div>
@@ -89,6 +112,8 @@ const LongTextArea = ({
       onChange={onChange}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
+      onFocus={onFocus}     /* 👈 Added */
+      onBlur={onBlur}       /* 👈 Added */
       disabled={disabled}
       rows={3}
       className={`w-full p-2 border-2 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all resize-none ${
@@ -97,6 +122,7 @@ const LongTextArea = ({
     />
   </div>
 );
+
 
 export function MultitaskingTest({ onShowData, onClearData, showData }: MultitaskingTestProps) {
   const [formData, setFormData] = useState<FormData>({
@@ -107,15 +133,21 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
   const [hasStarted, setHasStarted] = useState(false);
   const [currentChallenge, setCurrentChallenge] = useState<Challenge | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
-  const [challengeTimer, setChallengeTimer] = useState(8);
+  const [challengeTimer, setChallengeTimer] = useState<number>(PACE.perChallengeSecs);
   const [completedChallenges, setCompletedChallenges] = useState(0);
   const [isFormDisabled, setIsFormDisabled] = useState(false);
-  
+  const [answerError, setAnswerError] = useState<string | null>(null); // <-- NEW: block on wrong answer
+
   const challengeTimerRef = useRef<number | null>(null);
   const nextChallengeTimerRef = useRef<number | null>(null);
   const challengesShownRef = useRef(0);
 
-  const { logKeyDown, logKeyUp, clearLogs, getLogs, getAnalytics, exportAsJSON, exportAsCSV } = useKeystrokeLogger();
+  const {
+  logKeyDown, logKeyUp,
+  setFieldName, setActiveChallenge,   // NEW
+  clearLogs, getLogs, getAnalytics,
+  exportAsJSON, exportAsCSV
+} = useKeystrokeLogger();
 
   // Generate challenges
   const generateChallenge = (): Challenge => {
@@ -142,10 +174,10 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
       };
     } else {
       const stroopCombos = [
-        { word: 'RED', ink: 'blue', answer: 'Blue' },
-        { word: 'BLUE', ink: 'red', answer: 'Red' },
-        { word: 'GREEN', ink: 'yellow', answer: 'Yellow' },
-        { word: 'YELLOW', ink: 'green', answer: 'Green' },
+        { word: 'RED',    ink: 'blue',   answer: 'Blue' },
+        { word: 'BLUE',   ink: 'red',    answer: 'Red' },
+        { word: 'GREEN',  ink: 'yellow', answer: 'Yellow' },
+        { word: 'YELLOW', ink: 'green',  answer: 'Green' },
         { word: 'PURPLE', ink: 'orange', answer: 'Orange' },
         { word: 'ORANGE', ink: 'purple', answer: 'Purple' },
       ];
@@ -162,15 +194,17 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
     }
   };
 
-  // Schedule next challenge
+  // Schedule next challenge (uses PACE + new maxChallenges)
   const scheduleNextChallenge = () => {
-    if (challengesShownRef.current >= 3) return;
-    
-    const delay = 15000 + Math.random() * 10000; // 15-25 seconds
+    if (challengesShownRef.current >= PACE.maxChallenges) return;
+
+    const delay = PACE.minDelayMs + Math.random() * (PACE.maxDelayMs - PACE.minDelayMs);
     nextChallengeTimerRef.current = window.setTimeout(() => {
       const challenge = generateChallenge();
       setCurrentChallenge(challenge);
-      setChallengeTimer(8);
+      setActiveChallenge(challenge.id);
+      setChallengeTimer(PACE.perChallengeSecs);
+      setAnswerError(null); // reset previous error
       setIsFormDisabled(true);
       challengesShownRef.current += 1;
     }, delay);
@@ -192,26 +226,50 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
   }, [currentChallenge, challengeTimer]);
 
   const handleChallengeTimeout = () => {
+    // time ran out: dismiss and move on
     setCurrentChallenge(null);
     setUserAnswer('');
+    setAnswerError(null);
     setIsFormDisabled(false);
     setCompletedChallenges(prev => prev + 1);
     scheduleNextChallenge();
+    setActiveChallenge(null);
   };
 
+  // Only advance on correct answer; keep modal up on wrong
   const handleChallengeSubmit = () => {
+    if (!currentChallenge) return;
+
+    const isCorrect = normalize(userAnswer) === normalize(currentChallenge.correctAnswer);
+
+    if (!isCorrect) {
+      setAnswerError('Incorrect — try again before the timer runs out.');
+      return; // keep modal open, timer keeps ticking
+    }
+
+    // correct: proceed
+    setAnswerError(null);
     setCurrentChallenge(null);
     setUserAnswer('');
     setIsFormDisabled(false);
     setCompletedChallenges(prev => prev + 1);
     scheduleNextChallenge();
+    setActiveChallenge(null);
+  };
+
+  const handleOptionClick = (option: string) => {
+    setUserAnswer(option);
+    if (answerError) setAnswerError(null);
+    // For Stroop, selecting an option attempts submit immediately
+    const fakeEvent = { preventDefault() {} } as any; // no-op
+    handleChallengeSubmit();
   };
 
   const handleInputChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
-    
+
     if (!hasStarted) {
       setHasStarted(true);
       scheduleNextChallenge();
@@ -226,14 +284,15 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
     setHasStarted(false);
     setCurrentChallenge(null);
     setUserAnswer('');
+    setAnswerError(null);
     setCompletedChallenges(0);
     setIsFormDisabled(false);
     challengesShownRef.current = 0;
     clearLogs();
-    
+
     if (challengeTimerRef.current) clearTimeout(challengeTimerRef.current);
     if (nextChallengeTimerRef.current) clearTimeout(nextChallengeTimerRef.current);
-    
+
     onClearData();
   };
 
@@ -250,9 +309,9 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
           Fill out the form while handling interruptions! Random challenges will appear that you must solve quickly.
         </p>
         <div className="text-xs text-gray-600 space-y-1">
-          <div>• <strong>Math challenges:</strong> Solve in 8 seconds</div>
+          <div>• <strong>Math challenges:</strong> Solve in {PACE.perChallengeSecs}s</div>
           <div>• <strong>Stroop tests:</strong> Select the ink color, not the word</div>
-          <div>• Challenges completed: <strong>{completedChallenges}/3</strong></div>
+          <div>• Challenges completed: <strong>{completedChallenges}/{PACE.maxChallenges}</strong></div>
         </div>
         <div className="mt-2 text-sm text-gray-600">
           Form Progress: <strong>{completionPercentage}% Complete</strong> ({filledFields}/{totalFields} fields)
@@ -282,40 +341,48 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
                 <input
                   type="text"
                   value={userAnswer}
-                  onChange={(e) => setUserAnswer(e.target.value)}
+                  onChange={(e) => {
+                    setUserAnswer(e.target.value);
+                    if (answerError) setAnswerError(null);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleChallengeSubmit();
                   }}
-                  className="w-full p-3 border-2 border-indigo-300 rounded-lg text-center text-xl font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                  className={`w-full p-3 border-2 rounded-lg text-center text-xl font-bold focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none ${
+                    answerError ? 'border-red-500' : 'border-indigo-300'
+                  }`}
                   placeholder="Type answer"
                   autoFocus
                 />
+                {answerError && (
+                  <div className="mt-2 text-sm text-red-600 text-center">{answerError}</div>
+                )}
               </div>
             ) : (
               <div>
                 <p className="text-center text-sm text-gray-700 mb-3">
                   {currentChallenge.question}
                 </p>
-                <div 
+                <div
                   className="text-center text-5xl font-bold mb-4 py-3"
                   style={{ color: currentChallenge.inkColor }}
                 >
                   {currentChallenge.colorWord}
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid grid-cols-2 gap-2 ${answerError ? 'ring-2 ring-red-400 rounded-lg p-1' : ''}`}>
                   {currentChallenge.options?.map((option) => (
                     <button
                       key={option}
-                      onClick={() => {
-                        setUserAnswer(option);
-                        handleChallengeSubmit();
-                      }}
+                      onClick={() => handleOptionClick(option)}
                       className="p-3 bg-indigo-100 hover:bg-indigo-200 rounded-lg font-semibold text-gray-800 transition-colors"
                     >
                       {option}
                     </button>
                   ))}
                 </div>
+                {answerError && (
+                  <div className="mt-2 text-sm text-red-600 text-center">{answerError}</div>
+                )}
               </div>
             )}
 
@@ -341,6 +408,8 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
             onKeyDown={logKeyDown as any}
             onKeyUp={logKeyUp as any}
             disabled={isFormDisabled}
+            onFocus={() => setFieldName('fullName')}
+            onBlur={() => setFieldName(undefined)}
           />
           <ShortInputField
             label="Email Address"
@@ -348,6 +417,8 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
             onChange={handleInputChange('email')}
             onKeyDown={logKeyDown as any}
             onKeyUp={logKeyUp as any}
+            onFocus={() => setFieldName('email')}       
+            onBlur={() => setFieldName(undefined)}
             disabled={isFormDisabled}
           />
           <ShortInputField
@@ -356,6 +427,8 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
             onChange={handleInputChange('age')}
             onKeyDown={logKeyDown as any}
             onKeyUp={logKeyUp as any}
+            onFocus={() => setFieldName('age')}       
+            onBlur={() => setFieldName(undefined)}
             disabled={isFormDisabled}
           />
           <ShortInputField
@@ -364,6 +437,8 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
             onChange={handleInputChange('occupation')}
             onKeyDown={logKeyDown as any}
             onKeyUp={logKeyUp as any}
+            onFocus={() => setFieldName('occupation')}       
+            onBlur={() => setFieldName(undefined)}
             disabled={isFormDisabled}
           />
         </FormSection>
@@ -375,6 +450,8 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
             onChange={handleInputChange('morningRoutine')}
             onKeyDown={logKeyDown as any}
             onKeyUp={logKeyUp as any}
+            onFocus={() => setFieldName('morningRoutine')}       
+            onBlur={() => setFieldName(undefined)}
             disabled={isFormDisabled}
           />
           <LongTextArea
@@ -383,6 +460,8 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
             onChange={handleInputChange('favoriteMemory')}
             onKeyDown={logKeyDown as any}
             onKeyUp={logKeyUp as any}
+            onFocus={() => setFieldName('favoriteMemory')}       
+            onBlur={() => setFieldName(undefined)}
             disabled={isFormDisabled}
           />
           <LongTextArea
@@ -391,6 +470,8 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
             onChange={handleInputChange('weekendActivity')}
             onKeyDown={logKeyDown as any}
             onKeyUp={logKeyUp as any}
+            onFocus={() => setFieldName('weekendActivity')}       
+            onBlur={() => setFieldName(undefined)}
             disabled={isFormDisabled}
           />
         </FormSection>
@@ -414,7 +495,7 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
 
       {/* Keystroke Data Display */}
       {showData && (
-        <KeystrokeDataDisplay 
+        <KeystrokeDataDisplay
           events={getLogs()}
           analytics={getAnalytics()}
           onExportJSON={exportAsJSON}
