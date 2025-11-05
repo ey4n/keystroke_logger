@@ -1,7 +1,8 @@
-// components/tests/TimedTest.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { KeystrokeDataDisplay } from '../KeystrokeDataDisplay';
+import { FormData, initialFormData } from '../../types/formdata';
+import { DataCollectionForm } from '../forms/DataCollectionForm';
 
 interface TimedTestProps {
   onShowData: () => void;
@@ -9,107 +10,8 @@ interface TimedTestProps {
   showData: boolean;
 }
 
-interface FormData {
-  // Personal Details
-  fullName: string;
-  email: string;
-  age: string;
-  occupation: string;
-  
-  // Longer Answer Questions
-  morningRoutine: string;
-  favoriteMemory: string;
-  weekendActivity: string;
-}
-
-const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="mb-6">
-    <h3 className="text-md font-semibold text-gray-700 mb-3">
-      {title}
-    </h3>
-    <div className="space-y-4">
-      {children}
-    </div>
-  </div>
-);
-
-const ShortInputField = ({ 
-  label, 
-  value,
-  onChange,
-  onKeyDown,
-  onKeyUp,
-  disabled
-}: { 
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  onKeyUp: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  disabled: boolean;
-}) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">
-      {label}
-    </label>
-    <input
-      type="text"
-      value={value}
-      onChange={onChange}
-      onKeyDown={onKeyDown}
-      onKeyUp={onKeyUp}
-      disabled={disabled}
-      className={`w-full p-2 border-2 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all ${
-        disabled ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : 'border-gray-300'
-      }`}
-    />
-  </div>
-);
-
-const LongTextArea = ({ 
-  label, 
-  value,
-  onChange,
-  onKeyDown,
-  onKeyUp,
-  disabled
-}: { 
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  disabled: boolean;
-}) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">
-      {label}
-    </label>
-    <textarea
-      value={value}
-      onChange={onChange}
-      onKeyDown={onKeyDown}
-      onKeyUp={onKeyUp}
-      disabled={disabled}
-      rows={3}
-      className={`w-full p-2 border-2 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all resize-none ${
-        disabled ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : 'border-gray-300'
-      }`}
-    />
-  </div>
-);
-
 export function TimedTest({ onShowData, onClearData, showData }: TimedTestProps) {
-  const [formData, setFormData] = useState<FormData>({
-    fullName: '',
-    email: '',
-    age: '',
-    occupation: '',
-    morningRoutine: '',
-    favoriteMemory: '',
-    weekendActivity: '',
-  });
-
+  const [formData, setFormData] = useState<FormData>(initialFormData);
   const [timeLeft, setTimeLeft] = useState(120);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerExpired, setTimerExpired] = useState(false);
@@ -164,15 +66,7 @@ export function TimedTest({ onShowData, onClearData, showData }: TimedTestProps)
   };
 
   const handleClear = () => {
-    setFormData({
-      fullName: '',
-      email: '',
-      age: '',
-      occupation: '',
-      morningRoutine: '',
-      favoriteMemory: '',
-      weekendActivity: '',
-    });
+    setFormData(initialFormData);
     setIsTimerActive(false);
     setTimerExpired(false);
     setHasStarted(false);
@@ -236,69 +130,14 @@ export function TimedTest({ onShowData, onClearData, showData }: TimedTestProps)
       </div>
 
       {/* Form */}
-      <div className="max-h-[500px] overflow-y-auto pr-2 mb-6">
-        <FormSection title="Personal Details">
-          <ShortInputField
-            label="Full Name"
-            value={formData.fullName}
-            onChange={handleInputChange('fullName')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            disabled={timerExpired}
-          />
-          <ShortInputField
-            label="Email Address"
-            value={formData.email}
-            onChange={handleInputChange('email')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            disabled={timerExpired}
-          />
-          <ShortInputField
-            label="Age"
-            value={formData.age}
-            onChange={handleInputChange('age')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            disabled={timerExpired}
-          />
-          <ShortInputField
-            label="Occupation"
-            value={formData.occupation}
-            onChange={handleInputChange('occupation')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            disabled={timerExpired}
-          />
-        </FormSection>
-
-        <FormSection title="Tell Us About Yourself">
-          <LongTextArea
-            label="Describe your typical morning routine"
-            value={formData.morningRoutine}
-            onChange={handleInputChange('morningRoutine')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            disabled={timerExpired}
-          />
-          <LongTextArea
-            label="What's your favorite memory from the past year?"
-            value={formData.favoriteMemory}
-            onChange={handleInputChange('favoriteMemory')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            disabled={timerExpired}
-          />
-          <LongTextArea
-            label="How do you typically spend your weekends?"
-            value={formData.weekendActivity}
-            onChange={handleInputChange('weekendActivity')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            disabled={timerExpired}
-          />
-        </FormSection>
-      </div>
+      <DataCollectionForm
+        formData={formData}
+        onInputChange={handleInputChange}
+        onKeyDown={logKeyDown}
+        onKeyUp={logKeyUp}
+        disabled={timerExpired}
+        className="max-h-[500px] overflow-y-auto pr-2 mb-6"
+      />
 
       {/* Action Buttons */}
       <div className="flex gap-3">
