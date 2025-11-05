@@ -1,22 +1,13 @@
-// components/tests/MultitaskingTest.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { KeystrokeDataDisplay } from '../KeystrokeDataDisplay';
+import { FormData, initialFormData } from '../../types/formdata';
+import { DataCollectionForm } from '../forms/DataCollectionForm';
 
 interface MultitaskingTestProps {
   onShowData: () => void;
   onClearData: () => void;
   showData: boolean;
-}
-
-interface FormData {
-  fullName: string;
-  email: string;
-  age: string;
-  occupation: string;
-  morningRoutine: string;
-  favoriteMemory: string;
-  weekendActivity: string;
 }
 
 interface Challenge {
@@ -30,124 +21,36 @@ interface Challenge {
 }
 
 // ---- Pace/limits (edit these to make it faster/slower) -----------------
-
 const PACE = {
-  minDelayMs: 8000,      // was 3000 → now 8s minimum between challenges
-  maxDelayMs: 14000,     // was 7000 → now up to 14s
-  perChallengeSecs: 10,  // was 5  → give 10s to answer
-  maxChallenges: 10,     // allow more than 3 (set to any number or Infinity)
+  minDelayMs: 8000,      // 8s minimum between challenges
+  maxDelayMs: 14000,     // up to 14s
+  perChallengeSecs: 10,  // give 10s to answer
+  maxChallenges: 10,     // allow max 10 challenges
 } as const;
 // -----------------------------------------------------------------------
 
 const normalize = (s: string) => s.trim().toLowerCase();
 
-const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="mb-6">
-    <h3 className="text-md font-semibold text-gray-700 mb-3">{title}</h3>
-    <div className="space-y-4">{children}</div>
-  </div>
-);
-
-const ShortInputField = ({
-  label,
-  value,
-  onChange,
-  onKeyDown,
-  onKeyUp,
-  onFocus,
-  onBlur,
-  disabled
-}: {
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  onKeyUp: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
-  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
-  disabled: boolean;
-}) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-    <input
-      type="text"
-      value={value}
-      onChange={onChange}
-      onKeyDown={onKeyDown}
-      onKeyUp={onKeyUp}
-      onFocus={onFocus}     /* 👈 Added */
-      onBlur={onBlur}       /* 👈 Added */
-      disabled={disabled}
-      className={`w-full p-2 border-2 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all ${
-        disabled ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : 'border-gray-300'
-      }`}
-    />
-  </div>
-);
-
-
-const LongTextArea = ({
-  label,
-  value,
-  onChange,
-  onKeyDown,
-  onKeyUp,
-  onFocus,
-  onBlur,
-  disabled
-}: {
-  label: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onFocus?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
-  onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
-  disabled: boolean;
-}) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-    <textarea
-      value={value}
-      onChange={onChange}
-      onKeyDown={onKeyDown}
-      onKeyUp={onKeyUp}
-      onFocus={onFocus}     /* 👈 Added */
-      onBlur={onBlur}       /* 👈 Added */
-      disabled={disabled}
-      rows={3}
-      className={`w-full p-2 border-2 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all resize-none ${
-        disabled ? 'bg-gray-100 border-gray-300 cursor-not-allowed' : 'border-gray-300'
-      }`}
-    />
-  </div>
-);
-
-
 export function MultitaskingTest({ onShowData, onClearData, showData }: MultitaskingTestProps) {
-  const [formData, setFormData] = useState<FormData>({
-    fullName: '', email: '', age: '', occupation: '',
-    morningRoutine: '', favoriteMemory: '', weekendActivity: '',
-  });
-
+  const [formData, setFormData] = useState<FormData>(initialFormData);
   const [hasStarted, setHasStarted] = useState(false);
   const [currentChallenge, setCurrentChallenge] = useState<Challenge | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
   const [challengeTimer, setChallengeTimer] = useState<number>(PACE.perChallengeSecs);
   const [completedChallenges, setCompletedChallenges] = useState(0);
   const [isFormDisabled, setIsFormDisabled] = useState(false);
-  const [answerError, setAnswerError] = useState<string | null>(null); // <-- NEW: block on wrong answer
+  const [answerError, setAnswerError] = useState<string | null>(null);
 
   const challengeTimerRef = useRef<number | null>(null);
   const nextChallengeTimerRef = useRef<number | null>(null);
   const challengesShownRef = useRef(0);
 
   const {
-  logKeyDown, logKeyUp,
-  setFieldName, setActiveChallenge,   // NEW
-  clearLogs, getLogs, getAnalytics,
-  exportAsJSON, exportAsCSV
-} = useKeystrokeLogger();
+    logKeyDown, logKeyUp,
+    setFieldName, setActiveChallenge,
+    clearLogs, getLogs, getAnalytics,
+    exportAsJSON, exportAsCSV
+  } = useKeystrokeLogger();
 
   // Generate challenges
   const generateChallenge = (): Challenge => {
@@ -194,7 +97,7 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
     }
   };
 
-  // Schedule next challenge (uses PACE + new maxChallenges)
+  // Schedule next challenge
   const scheduleNextChallenge = () => {
     if (challengesShownRef.current >= PACE.maxChallenges) return;
 
@@ -204,7 +107,7 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
       setCurrentChallenge(challenge);
       setActiveChallenge(challenge.id);
       setChallengeTimer(PACE.perChallengeSecs);
-      setAnswerError(null); // reset previous error
+      setAnswerError(null);
       setIsFormDisabled(true);
       challengesShownRef.current += 1;
     }, delay);
@@ -226,64 +129,68 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
   }, [currentChallenge, challengeTimer]);
 
   const handleChallengeTimeout = () => {
-    // time ran out: dismiss and move on
-    setCurrentChallenge(null);
-    setUserAnswer('');
-    setAnswerError(null);
-    setIsFormDisabled(false);
-    setCompletedChallenges(prev => prev + 1);
-    scheduleNextChallenge();
-    setActiveChallenge(null);
+    setAnswerError('⏰ Time expired! Moving on...');
+    setTimeout(() => {
+      setCurrentChallenge(null);
+      setActiveChallenge(null);
+      setUserAnswer('');
+      setAnswerError(null);
+      setIsFormDisabled(false);
+      scheduleNextChallenge();
+    }, 1500);
   };
 
-  // Only advance on correct answer; keep modal up on wrong
   const handleChallengeSubmit = () => {
     if (!currentChallenge) return;
-
+    
     const isCorrect = normalize(userAnswer) === normalize(currentChallenge.correctAnswer);
-
+    
     if (!isCorrect) {
-      setAnswerError('Incorrect — try again before the timer runs out.');
-      return; // keep modal open, timer keeps ticking
+      setAnswerError('❌ Incorrect! Try again.');
+      return;
     }
 
-    // correct: proceed
-    setAnswerError(null);
-    setCurrentChallenge(null);
-    setUserAnswer('');
-    setIsFormDisabled(false);
     setCompletedChallenges(prev => prev + 1);
-    scheduleNextChallenge();
+    setCurrentChallenge(null);
     setActiveChallenge(null);
+    setUserAnswer('');
+    setAnswerError(null);
+    setIsFormDisabled(false);
+    scheduleNextChallenge();
   };
 
   const handleOptionClick = (option: string) => {
     setUserAnswer(option);
     if (answerError) setAnswerError(null);
-    // For Stroop, selecting an option attempts submit immediately
-    const fakeEvent = { preventDefault() {} } as any; // no-op
-    handleChallengeSubmit();
   };
 
   const handleInputChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
+    if (isFormDisabled) return;
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
-
+    
     if (!hasStarted) {
       setHasStarted(true);
       scheduleNextChallenge();
     }
   };
 
+  const handleFieldFocus = (fieldName: keyof FormData) => {
+    if (setFieldName) setFieldName(fieldName);
+  };
+
+  const handleFieldBlur = () => {
+    if (setFieldName) setFieldName(undefined);
+  };
+
   const handleClear = () => {
-    setFormData({
-      fullName: '', email: '', age: '', occupation: '',
-      morningRoutine: '', favoriteMemory: '', weekendActivity: '',
-    });
+    setFormData(initialFormData);
     setHasStarted(false);
     setCurrentChallenge(null);
+    setActiveChallenge(null);
     setUserAnswer('');
+    setChallengeTimer(PACE.perChallengeSecs);
     setAnswerError(null);
     setCompletedChallenges(0);
     setIsFormDisabled(false);
@@ -397,85 +304,18 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
       )}
 
       {/* Form */}
-      <div className={`max-h-[500px] overflow-y-auto pr-2 mb-6 transition-opacity ${
-        isFormDisabled ? 'opacity-50' : 'opacity-100'
-      }`}>
-        <FormSection title="Personal Details">
-          <ShortInputField
-            label="Full Name"
-            value={formData.fullName}
-            onChange={handleInputChange('fullName')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            disabled={isFormDisabled}
-            onFocus={() => setFieldName('fullName')}
-            onBlur={() => setFieldName(undefined)}
-          />
-          <ShortInputField
-            label="Email Address"
-            value={formData.email}
-            onChange={handleInputChange('email')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            onFocus={() => setFieldName('email')}       
-            onBlur={() => setFieldName(undefined)}
-            disabled={isFormDisabled}
-          />
-          <ShortInputField
-            label="Age"
-            value={formData.age}
-            onChange={handleInputChange('age')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            onFocus={() => setFieldName('age')}       
-            onBlur={() => setFieldName(undefined)}
-            disabled={isFormDisabled}
-          />
-          <ShortInputField
-            label="Occupation"
-            value={formData.occupation}
-            onChange={handleInputChange('occupation')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            onFocus={() => setFieldName('occupation')}       
-            onBlur={() => setFieldName(undefined)}
-            disabled={isFormDisabled}
-          />
-        </FormSection>
-
-        <FormSection title="Tell Us About Yourself">
-          <LongTextArea
-            label="Describe your typical morning routine"
-            value={formData.morningRoutine}
-            onChange={handleInputChange('morningRoutine')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            onFocus={() => setFieldName('morningRoutine')}       
-            onBlur={() => setFieldName(undefined)}
-            disabled={isFormDisabled}
-          />
-          <LongTextArea
-            label="What's your favorite memory from the past year?"
-            value={formData.favoriteMemory}
-            onChange={handleInputChange('favoriteMemory')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            onFocus={() => setFieldName('favoriteMemory')}       
-            onBlur={() => setFieldName(undefined)}
-            disabled={isFormDisabled}
-          />
-          <LongTextArea
-            label="How do you typically spend your weekends?"
-            value={formData.weekendActivity}
-            onChange={handleInputChange('weekendActivity')}
-            onKeyDown={logKeyDown as any}
-            onKeyUp={logKeyUp as any}
-            onFocus={() => setFieldName('weekendActivity')}       
-            onBlur={() => setFieldName(undefined)}
-            disabled={isFormDisabled}
-          />
-        </FormSection>
-      </div>
+      <DataCollectionForm
+        formData={formData}
+        onInputChange={handleInputChange}
+        onKeyDown={logKeyDown}
+        onKeyUp={logKeyUp}
+        onFieldFocus={handleFieldFocus}
+        onFieldBlur={handleFieldBlur}
+        disabled={isFormDisabled}
+        className={`max-h-[500px] overflow-y-auto pr-2 mb-6 transition-opacity ${
+          isFormDisabled ? 'opacity-50' : 'opacity-100'
+        }`}
+      />
 
       {/* Action Buttons */}
       <div className="flex gap-3">
