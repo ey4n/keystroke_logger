@@ -1,7 +1,8 @@
 // components/tests/FreeTypingTest.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { KeystrokeDataDisplay } from '../KeystrokeDataDisplay';
+import { saveKeystrokesNoAuth } from '../../services/saveKeystrokes';
 
 interface FreeTypingTestProps {
   onShowData: () => void;
@@ -89,6 +90,7 @@ const LongTextArea = ({
   </div>
 );
 
+
 export function Free({ onShowData, onClearData, showData }: FreeTypingTestProps) {
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
@@ -100,7 +102,23 @@ export function Free({ onShowData, onClearData, showData }: FreeTypingTestProps)
     weekendActivity: '',
   });
 
-  const { logKeyDown, logKeyUp, clearLogs, getLogs, getAnalytics, exportAsJSON, exportAsCSV } = useKeystrokeLogger();
+  const [isSaving, setIsSaving] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
+
+  useEffect(() => {
+    const id = (globalThis.crypto?.randomUUID?.() ?? `sess_${Date.now()}`);
+    setSessionId(id);
+  }, []);
+
+  const {
+    logKeyDown,
+    logKeyUp,
+    clearLogs,
+    getLogs,
+    getAnalytics,
+    exportAsJSON,
+    exportAsCSV
+  } = useKeystrokeLogger();
 
   const handleInputChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -122,7 +140,38 @@ export function Free({ onShowData, onClearData, showData }: FreeTypingTestProps)
     onClearData();
   };
 
-  // Calculate completion percentage
+  async function handleSaveToSupabase() {
+    try {
+      setIsSaving(true);
+
+      const events = getLogs(); 
+
+      const shaped = events.map((ev: any) => ({
+        key: ev.key ?? ev.code ?? 'Unknown',
+        pressed_at: ev.timestamp ?? ev.time ?? ev.pressedAt ?? new Date().toISOString(),
+        latency_ms: ev.latencyMs ?? ev.latency ?? null,
+        meta: {
+          type: ev.type,            // e.g., 'keydown' / 'keyup'
+          field: ev.fieldName,  
+          sessionId,
+          formSnapshot: {
+            fullName: formData.fullName,
+            email: formData.email,
+          }
+        }
+      }));
+
+      const res = await saveKeystrokesNoAuth(shaped, 'free-form');
+
+      alert(`Saved ${res.count} keystrokes to Supabase ✅`);
+    } catch (err: any) {
+      console.error(err);
+      alert(`Save failed: ${err?.message ?? err}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   const totalFields = Object.keys(formData).length;
   const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
@@ -206,17 +255,26 @@ export function Free({ onShowData, onClearData, showData }: FreeTypingTestProps)
         >
           {showData ? 'Hide Data' : 'Show All Data'}
         </button>
+
         <button
           onClick={handleClear}
           className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
         >
           Clear Data
         </button>
+
+        <button
+          onClick={handleSaveToSupabase}
+          disabled={isSaving || !sessionId}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+        >
+          {isSaving ? 'Saving…' : 'Save to Supabase'}
+        </button>
       </div>
 
-      {/* Keystroke Data Display */}
+      {/* Data viewer */}
       {showData && (
-        <KeystrokeDataDisplay 
+        <KeystrokeDataDisplay
           events={getLogs()}
           analytics={getAnalytics()}
           onExportJSON={exportAsJSON}
