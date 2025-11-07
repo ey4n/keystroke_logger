@@ -1,21 +1,28 @@
+'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
-import { KeystrokeDataDisplay } from '../KeystrokeDataDisplay';
 import { FormData, initialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
 
 interface TimedTestProps {
-  onShowData: () => void;
-  onClearData: () => void;
-  showData: boolean;
+  sessionId: string;
+  onTestDataUpdate: (data: {
+    getLogs: () => any[];
+    getAnalytics: () => any;
+    exportAsJSON: () => void;
+    exportAsCSV: () => void;
+    formData: any;
+  }) => void;
 }
 
-export function TimedTest({ onShowData, onClearData, showData }: TimedTestProps) {
+export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [timeLeft, setTimeLeft] = useState(120);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerExpired, setTimerExpired] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [startTime, setStartTime] = useState<number | null>(null);
   
   const { 
     logKeyDown, 
@@ -28,6 +35,34 @@ export function TimedTest({ onShowData, onClearData, showData }: TimedTestProps)
   } = useKeystrokeLogger();
   
   const timerRef = useRef<number | null>(null);
+
+  // Calculate elapsed time
+  const elapsedTime = startTime ? 120 - timeLeft : 0;
+
+  // Calculate completion percentage
+  const totalFields = Object.keys(formData).length;
+  const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
+  const completionPercentage = Math.round((filledFields / totalFields) * 100);
+
+  // Update parent with current data
+  useEffect(() => {
+    onTestDataUpdate({
+      getLogs,
+      getAnalytics,
+      exportAsJSON,
+      exportAsCSV,
+      formData: {
+        timeLimit: 120,
+        timeElapsed: elapsedTime,
+        timeRemaining: timeLeft,
+        timerExpired,
+        completionPercentage,
+        filledFields,
+        totalFields,
+        formSnapshot: formData,
+      }
+    });
+  }, [formData, timeLeft, timerExpired, elapsedTime, completionPercentage]);
 
   // Timer effect
   useEffect(() => {
@@ -62,26 +97,9 @@ export function TimedTest({ onShowData, onClearData, showData }: TimedTestProps)
     if (!hasStarted) {
       setHasStarted(true);
       setIsTimerActive(true);
+      setStartTime(Date.now());
     }
   };
-
-  const handleClear = () => {
-    setFormData(initialFormData);
-    setIsTimerActive(false);
-    setTimerExpired(false);
-    setHasStarted(false);
-    setTimeLeft(120);
-    clearLogs();
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    onClearData();
-  };
-
-  // Calculate completion percentage
-  const totalFields = Object.keys(formData).length;
-  const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
-  const completionPercentage = Math.round((filledFields / totalFields) * 100);
 
   return (
     <div>
@@ -138,32 +156,6 @@ export function TimedTest({ onShowData, onClearData, showData }: TimedTestProps)
         disabled={timerExpired}
         className="max-h-[500px] overflow-y-auto pr-2 mb-6"
       />
-
-      {/* Action Buttons */}
-      <div className="flex gap-3">
-        <button
-          onClick={onShowData}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-        >
-          {showData ? 'Hide Data' : 'Show All Data'}
-        </button>
-        <button
-          onClick={handleClear}
-          className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-        >
-          Clear Data
-        </button>
-      </div>
-
-      {/* Keystroke Data Display */}
-      {showData && (
-        <KeystrokeDataDisplay 
-          events={getLogs()}
-          analytics={getAnalytics()}
-          onExportJSON={exportAsJSON}
-          onExportCSV={exportAsCSV}
-        />
-      )}
     </div>
   );
 }

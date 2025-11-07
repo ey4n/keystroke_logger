@@ -29,7 +29,7 @@ const AVAILABLE_TESTS: TestConfig[] = [
     id: 'lying',
     name: 'Lying Test',
     description: 'Lie on some form fields',
-    enabled: true,
+    enabled: false,
   },
 ];
 

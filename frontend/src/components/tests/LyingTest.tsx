@@ -4,6 +4,7 @@ import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { KeystrokeDataDisplay } from '../KeystrokeDataDisplay';
 
 interface LyingTestProps {
+  sessionId: string;
   onShowData: () => void;
   onClearData: () => void;
   showData: boolean;

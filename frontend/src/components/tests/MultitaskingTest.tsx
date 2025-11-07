@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
-import { KeystrokeDataDisplay } from '../KeystrokeDataDisplay';
 import { FormData, initialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
 
 interface MultitaskingTestProps {
-  onShowData: () => void;
-  onClearData: () => void;
-  showData: boolean;
+  sessionId: string;
+  onTestDataUpdate: (data: {
+    getLogs: () => any[];
+    getAnalytics: () => any;
+    exportAsJSON: () => void;
+    exportAsCSV: () => void;
+    formData: any;
+  }) => void;
 }
 
 interface Challenge {
@@ -18,6 +22,17 @@ interface Challenge {
   options?: string[];
   colorWord?: string;
   inkColor?: string;
+}
+
+interface ChallengeResult {
+  challengeId: number;
+  type: 'math' | 'stroop';
+  question: string;
+  userAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+  timeToAnswer: number;
+  timedOut: boolean;
 }
 
 // ---- Pace/limits (edit these to make it faster/slower) -----------------
@@ -31,7 +46,7 @@ const PACE = {
 
 const normalize = (s: string) => s.trim().toLowerCase();
 
-export function MultitaskingTest({ onShowData, onClearData, showData }: MultitaskingTestProps) {
+export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTestProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [hasStarted, setHasStarted] = useState(false);
   const [currentChallenge, setCurrentChallenge] = useState<Challenge | null>(null);
@@ -40,6 +55,8 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
   const [completedChallenges, setCompletedChallenges] = useState(0);
   const [isFormDisabled, setIsFormDisabled] = useState(false);
   const [answerError, setAnswerError] = useState<string | null>(null);
+  const [challengeResults, setChallengeResults] = useState<ChallengeResult[]>([]);
+  const [challengeStartTime, setChallengeStartTime] = useState<number | null>(null);
 
   const challengeTimerRef = useRef<number | null>(null);
   const nextChallengeTimerRef = useRef<number | null>(null);
@@ -51,6 +68,39 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
     clearLogs, getLogs, getAnalytics,
     exportAsJSON, exportAsCSV
   } = useKeystrokeLogger();
+
+  // Calculate completion percentage
+  const totalFields = Object.keys(formData).length;
+  const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
+  const completionPercentage = Math.round((filledFields / totalFields) * 100);
+
+  // Calculate challenge statistics
+  const correctChallenges = challengeResults.filter(r => r.isCorrect).length;
+  const timedOutChallenges = challengeResults.filter(r => r.timedOut).length;
+  const avgResponseTime = challengeResults.length > 0
+    ? Math.round(challengeResults.reduce((sum, r) => sum + r.timeToAnswer, 0) / challengeResults.length)
+    : 0;
+
+  // Update parent with current data
+  useEffect(() => {
+    onTestDataUpdate({
+      getLogs,
+      getAnalytics,
+      exportAsJSON,
+      exportAsCSV,
+      formData: {
+        completionPercentage,
+        filledFields,
+        totalFields,
+        challengesShown: challengesShownRef.current,
+        challengesCompleted: correctChallenges,
+        challengesTimedOut: timedOutChallenges,
+        averageResponseTime: avgResponseTime,
+        challengeResults: challengeResults,
+        formSnapshot: formData,
+      }
+    });
+  }, [formData, completedChallenges, challengeResults, completionPercentage]);
 
   // Generate challenges
   const generateChallenge = (): Challenge => {
@@ -107,6 +157,7 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
       setCurrentChallenge(challenge);
       setActiveChallenge(challenge.id);
       setChallengeTimer(PACE.perChallengeSecs);
+      setChallengeStartTime(Date.now());
       setAnswerError(null);
       setIsFormDisabled(true);
       challengesShownRef.current += 1;
@@ -129,6 +180,21 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
   }, [currentChallenge, challengeTimer]);
 
   const handleChallengeTimeout = () => {
+    if (currentChallenge && challengeStartTime) {
+      // Record timeout result
+      const result: ChallengeResult = {
+        challengeId: currentChallenge.id,
+        type: currentChallenge.type,
+        question: currentChallenge.question,
+        userAnswer: userAnswer || '(no answer)',
+        correctAnswer: currentChallenge.correctAnswer,
+        isCorrect: false,
+        timeToAnswer: Date.now() - challengeStartTime,
+        timedOut: true,
+      };
+      setChallengeResults(prev => [...prev, result]);
+    }
+
     setAnswerError('⏰ Time expired! Moving on...');
     setTimeout(() => {
       setCurrentChallenge(null);
@@ -136,12 +202,13 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
       setUserAnswer('');
       setAnswerError(null);
       setIsFormDisabled(false);
+      setChallengeStartTime(null);
       scheduleNextChallenge();
     }, 1500);
   };
 
   const handleChallengeSubmit = () => {
-    if (!currentChallenge) return;
+    if (!currentChallenge || !challengeStartTime) return;
     
     const isCorrect = normalize(userAnswer) === normalize(currentChallenge.correctAnswer);
     
@@ -150,12 +217,26 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
       return;
     }
 
+    // Record successful result
+    const result: ChallengeResult = {
+      challengeId: currentChallenge.id,
+      type: currentChallenge.type,
+      question: currentChallenge.question,
+      userAnswer: userAnswer,
+      correctAnswer: currentChallenge.correctAnswer,
+      isCorrect: true,
+      timeToAnswer: Date.now() - challengeStartTime,
+      timedOut: false,
+    };
+    setChallengeResults(prev => [...prev, result]);
+
     setCompletedChallenges(prev => prev + 1);
     setCurrentChallenge(null);
     setActiveChallenge(null);
     setUserAnswer('');
     setAnswerError(null);
     setIsFormDisabled(false);
+    setChallengeStartTime(null);
     scheduleNextChallenge();
   };
 
@@ -184,29 +265,6 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
     if (setFieldName) setFieldName(undefined);
   };
 
-  const handleClear = () => {
-    setFormData(initialFormData);
-    setHasStarted(false);
-    setCurrentChallenge(null);
-    setActiveChallenge(null);
-    setUserAnswer('');
-    setChallengeTimer(PACE.perChallengeSecs);
-    setAnswerError(null);
-    setCompletedChallenges(0);
-    setIsFormDisabled(false);
-    challengesShownRef.current = 0;
-    clearLogs();
-
-    if (challengeTimerRef.current) clearTimeout(challengeTimerRef.current);
-    if (nextChallengeTimerRef.current) clearTimeout(nextChallengeTimerRef.current);
-
-    onClearData();
-  };
-
-  const totalFields = Object.keys(formData).length;
-  const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
-  const completionPercentage = Math.round((filledFields / totalFields) * 100);
-
   return (
     <div className="relative">
       {/* Instructions */}
@@ -218,7 +276,7 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
         <div className="text-xs text-gray-600 space-y-1">
           <div>• <strong>Math challenges:</strong> Solve in {PACE.perChallengeSecs}s</div>
           <div>• <strong>Stroop tests:</strong> Select the ink color, not the word</div>
-          <div>• Challenges completed: <strong>{completedChallenges}/{PACE.maxChallenges}</strong></div>
+          <div>• Challenges completed: <strong>{correctChallenges}/{PACE.maxChallenges}</strong> (Timed out: {timedOutChallenges})</div>
         </div>
         <div className="mt-2 text-sm text-gray-600">
           Form Progress: <strong>{completionPercentage}% Complete</strong> ({filledFields}/{totalFields} fields)
@@ -316,32 +374,6 @@ export function MultitaskingTest({ onShowData, onClearData, showData }: Multitas
           isFormDisabled ? 'opacity-50' : 'opacity-100'
         }`}
       />
-
-      {/* Action Buttons */}
-      <div className="flex gap-3">
-        <button
-          onClick={onShowData}
-          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-        >
-          {showData ? 'Hide Data' : 'Show All Data'}
-        </button>
-        <button
-          onClick={handleClear}
-          className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-        >
-          Clear Data
-        </button>
-      </div>
-
-      {/* Keystroke Data Display */}
-      {showData && (
-        <KeystrokeDataDisplay
-          events={getLogs()}
-          analytics={getAnalytics()}
-          onExportJSON={exportAsJSON}
-          onExportCSV={exportAsCSV}
-        />
-      )}
     </div>
   );
 }
