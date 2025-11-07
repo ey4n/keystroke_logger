@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { KeystrokeEvent } from '../types/keystroke';
 import { KeystrokeAnalytics } from '../hooks/useKeystrokeLogger';
+import { saveKeystrokesNoAuth } from '../services/saveKeystrokes';
 
 interface KeystrokeDataDisplayProps {
   events: KeystrokeEvent[];
   analytics?: KeystrokeAnalytics;
   onExportJSON?: () => void;
   onExportCSV?: () => void;
+  testType?: string;
+  sessionId?: string;
+  formData?: Record<string, any>;
 }
 
 export function KeystrokeDataDisplay({
@@ -14,7 +18,42 @@ export function KeystrokeDataDisplay({
   analytics,
   onExportJSON,
   onExportCSV,
+  testType = 'unknown',
+  sessionId,
+  formData,
 }: KeystrokeDataDisplayProps) {
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleSaveToSupabase() {
+    try {
+      setIsSaving(true);
+
+      const shaped = events.map((ev: any) => ({
+        key: ev.key ?? ev.code ?? 'Unknown',
+        pressed_at: ev.timestamp ?? ev.time ?? ev.pressedAt ?? new Date().toISOString(),
+        latency_ms: ev.latencyMs ?? ev.latency ?? null,
+        meta: {
+          type: ev.eventType ?? ev.type,
+          field: ev.fieldName,
+          challengeId: ev.challengeId,
+          sessionId: sessionId ?? ev.sessionId,
+          elapsedSinceStart: ev.elapsedSinceStart,
+          deviceInfo: ev.deviceInfo,
+          formSnapshot: formData ?? {},
+        }
+      }));
+
+      const res = await saveKeystrokesNoAuth(shaped, testType);
+
+      alert(`✅ Saved ${res.count} keystrokes to Supabase`);
+    } catch (err: any) {
+      console.error(err);
+      alert(`❌ Save failed: ${err?.message ?? err}`);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <div className="mt-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
       {/* ===== HEADER ===== */}
@@ -24,25 +63,16 @@ export function KeystrokeDataDisplay({
             Keystroke Data ({events.length} events)
           </h2>
 
-          {/* Export Buttons */}
-          {(onExportJSON || onExportCSV) && events.length > 0 && (
+          {/* Action Buttons */}
+          {events.length > 0 && (
             <div className="flex gap-2">
-              {onExportJSON && (
-                <button
-                  onClick={onExportJSON}
-                  className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                >
-                  Export JSON
-                </button>
-              )}
-              {onExportCSV && (
-                <button
-                  onClick={onExportCSV}
-                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                >
-                  Export CSV
-                </button>
-              )}
+              <button
+                onClick={handleSaveToSupabase}
+                disabled={isSaving}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+              >
+                {isSaving ? 'Saving…' : '💾 Save to Supabase'}
+              </button>
             </div>
           )}
         </div>
