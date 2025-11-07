@@ -1,0 +1,21 @@
+[00:00:00.446] Server  WARN     ⚠ Minimum recommended TypeScript version is v5.1.0, older versions can potentially be incompatible with Next.js. Detected: 4.9.5
+[00:00:00.495] Server  LOG      ✓ Ready in 350ms
+[00:00:04.123] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:26.269] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:32.027] Browser ERROR   {}
+[09:19:55.058] Browser ERROR   {}
+[09:20:03.180] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[09:20:30.162] Server  LOG        Reload env: .env
+[09:20:44.415] Browser ERROR   {}
+[09:21:18.163] Server  LOG        Reload env: .env.local
+[09:21:43.090] Browser ERROR   {}
+[09:22:19.646] Server  LOG      ✓ Compiled in 83ms
+[09:27:34.470] Server  LOG      ✓ Compiled in 50ms
+[09:29:30.167] Server  ERROR    ⨯ Error: Route / with `dynamic = "error"` couldn't be rendered statically because it used `cookies()`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering
+[09:29:30.340] Server  ERROR    ⨯ Error: Route / with `dynamic = "error"` couldn't be rendered statically because it used `cookies()`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering
+[09:29:30.351] Server  ERROR    ⨯ Error: Route / with `dynamic = "error"` couldn't be rendered statically because it used `cookies()`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering
+[09:29:30.444] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[09:29:31.265] Browser ERROR   uncaughtError: Error: Route / with `dynamic = "error"` couldn't be rendered statically because it used `cookies()`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering
+[09:30:05.418] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[09:30:27.598] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[09:30:30.774] Browser WARN    GoTrueClient@sb-nzhaavgfdigtwfeedniz-auth-token:1 (2.80.0) 2025-11-07T18:20:30.396Z Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key.
