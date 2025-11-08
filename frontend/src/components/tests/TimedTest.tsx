@@ -10,8 +10,6 @@ interface TimedTestProps {
   onTestDataUpdate: (data: {
     getLogs: () => any[];
     getAnalytics: () => any;
-    exportAsJSON: () => void;
-    exportAsCSV: () => void;
     formData: any;
   }) => void;
 }
@@ -30,8 +28,6 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     clearLogs, 
     getLogs, 
     getAnalytics,
-    exportAsJSON,
-    exportAsCSV 
   } = useKeystrokeLogger();
   
   const timerRef = useRef<number | null>(null);
@@ -49,8 +45,6 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     onTestDataUpdate({
       getLogs,
       getAnalytics,
-      exportAsJSON,
-      exportAsCSV,
       formData: {
         timeLimit: 120,
         timeElapsed: elapsedTime,

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TestSelector } from './TestSelector';
 import { Free } from '../components/tests/Free';
 import { TimedTest } from '../components/tests/TimedTest';
@@ -13,6 +13,7 @@ export default function TestContainer() {
   const [currentTest, setCurrentTest] = useState<TestType>('free');
   const [showData, setShowData] = useState(true);
   const [sessionId, setSessionId] = useState<string>('');
+  const [dataVersion, setDataVersion] = useState(0);
   
   // Store refs to each test's data functions
   const [testDataRef, setTestDataRef] = useState<{
@@ -20,6 +21,7 @@ export default function TestContainer() {
     getAnalytics: () => any;
     exportAsJSON: () => void;
     exportAsCSV: () => void;
+    clearLogs: () => void;
     formData?: any;
   } | null>(null);
 
@@ -39,7 +41,17 @@ export default function TestContainer() {
   };
 
   const handleShowData = () => setShowData(prev => !prev);
-  const handleClearData = () => setShowData(false);
+
+  // replace your clear handler with:
+  const handleClearData = () => {
+    if (testDataRef && typeof testDataRef.clearLogs === 'function') {
+      testDataRef.clearLogs();
+    }
+    setShowData(true);              // keep panel visible
+    setDataVersion(v => v + 1);     // force remount of the table
+  };
+
+
 
   // Change test handler
   const handleTestChange = (test: TestType) => {
@@ -48,9 +60,9 @@ export default function TestContainer() {
   };
 
   // Callback to receive test data from child components
-  const handleTestDataUpdate = (dataFunctions: any) => {
-    setTestDataRef(dataFunctions);
-  };
+  const handleTestDataUpdate = useCallback((dataFunctions: any) => {
+  setTestDataRef(prev => (prev === dataFunctions ? prev : dataFunctions));
+}, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -119,19 +131,18 @@ export default function TestContainer() {
             {showData ? 'Hide Data' : 'Show All Data'}
           </button>
           
-          <button
-            onClick={() => {
-              handleClearData();
-            }}
+          {/* <button
+            onClick={handleClearData}
             className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
           >
             Clear Data
-          </button>
+          </button> */}
         </div>
 
         {/* Data Display */}
         {showData && testDataRef && (
           <KeystrokeDataDisplay
+            key={`${currentTest}-${sessionId}-${dataVersion}`}
             events={testDataRef.getLogs()}
             analytics={testDataRef.getAnalytics()}
             onExportJSON={testDataRef.exportAsJSON}
