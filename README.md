@@ -1,48 +1,58 @@
-<img width="1384" height="787" alt="Screenshot 2025-10-01 at 4 48 19 PM" src="https://github.com/user-attachments/assets/5e661049-62d9-4d1d-be74-eed212c0beaf" />
+# Keystroke Dynamics Data Collection System
+Built with Next.js and Supabase.
 
-# Getting Started with Create React App
+## Quick Start
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+### Installation & Running
 
-## Available Scripts
+```
+npm install
+npm run dev
+```
 
-In the project directory, you can run:
+## Data Collection Guide
 
-### `npm start`
+1. **Begin a Test Session**
+   - A unique session ID is automatically generated when you load the page
+   - This session ID tracks all your keystrokes for the current session
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+2. **Start Typing**
+   - All keystrokes (key presses and releases) are captured automatically
+   - Each keystroke is tagged with:
+     - Session ID
+     - Test type (free, timed, multitasking)
+     - Field name (which question you're answering)
+     - Timestamp and timing metrics
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+3. **Review Your Data** 
+   - Click **"Show All Data"** to see captured keystrokes in real-time
 
-### `npm test`
+4. **Save Your Data** **PLEASE SAVE BEFORE YOU SWITCH OUT**
+   - Click **"Save to Supabase"** to save your data to the database
+   - **PLEASE SAVE BEFORE SWITCHING TESTS OR RELOADING** sorry this is a bad design on my end i will fix it soon
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+5. **Switch Tests**
+   - Select a different test type from the test selector
+   - **Do not reload the page in order to retain your session id** another slightly bad design sorry
 
-### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### TLDR
+> **🚨 If you reload the page, all unsaved data will be lost and a new session will start.**
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🗄️ Database Schema
 
-### `npm run eject`
+Data is stored in Supabase with the following structure:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
-
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | bigint | Auto-generated unique identifier |
+| `key` | text | The key pressed (e.g., "a", "Enter") |
+| `pressed_at` | timestamp | When the key was pressed |
+| `session_id` | uuid | Unique session identifier |
+| `test_type` | text | Type of test (free, timed, multitasking) |
+| `event_type` | text | "keydown" or "keyup" |
+| `device_info` | text | Browser user agent string |
+| `form_snapshot` | jsonb | Form state at time of keystroke |
+| `field_name` | text | Which field was being filled (e.g., "email", "morningRoutine") |
+| `meta` | jsonb | Additional metadata (key code, elapsed time, challenge ID) |
