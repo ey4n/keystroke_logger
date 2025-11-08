@@ -56,3 +56,8 @@ Data is stored in Supabase with the following structure:
 | `form_snapshot` | jsonb | Form state at time of keystroke |
 | `field_name` | text | Which field was being filled (e.g., "email", "morningRoutine") |
 | `meta` | jsonb | Additional metadata (key code, elapsed time, challenge ID) |
+
+## Things that are still wonky  
+- multitasking test -> save the time when the challenge is given so that we can monitor if there is a difference at that specific time
+- sorry the reloading thing may be quite annoying lawl
+- the stupid questions... will change soon
