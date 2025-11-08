@@ -23,32 +23,47 @@ export function KeystrokeDataDisplay({
   formData,
 }: KeystrokeDataDisplayProps) {
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   async function handleSaveToSupabase() {
+    if (events.length === 0) {
+      alert('No keystroke data to save!');
+      return;
+    }
+
     try {
       setIsSaving(true);
+      setSaveStatus('idle');
 
-      const shaped = events.map((ev: any) => ({
-        key: ev.key ?? ev.code ?? 'Unknown',
-        pressed_at: ev.timestamp ?? ev.time ?? ev.pressedAt ?? new Date().toISOString(),
-        latency_ms: ev.latencyMs ?? ev.latency ?? null,
-        meta: {
-          type: ev.eventType ?? ev.type,
-          field: ev.fieldName,
-          challengeId: ev.challengeId,
-          sessionId: sessionId ?? ev.sessionId,
-          elapsedSinceStart: ev.elapsedSinceStart,
-          deviceInfo: ev.deviceInfo,
-          formSnapshot: formData ?? {},
-        }
+      // Map events to match the database schema and saveKeystrokes function
+      const enrichedEvents = events.map((ev) => ({
+        key: ev.key,
+        eventType: ev.eventType,
+        pressed_at: ev.timestamp,
+        code: ev.code,
+        sessionId: sessionId || ev.sessionId, // Use sessionId from props first
+        testType: testType, 
+        deviceInfo: ev.deviceInfo,
+        fieldName: ev.fieldName,
+        elapsedSinceStart: ev.elapsedSinceStart,
+        challengeId: ev.challengeId,
+        formSnapshot: formData
       }));
 
-      const res = await saveKeystrokesNoAuth(shaped, testType);
+      console.log(`Saving ${enrichedEvents.length} keystroke events for session ${sessionId}...`);
+      
+      const res = await saveKeystrokesNoAuth(enrichedEvents);
 
+      console.log(`✅ Successfully saved ${res.count} keystroke events!`);
+      setSaveStatus('success');
       alert(`✅ Saved ${res.count} keystrokes to Supabase`);
+      
+      // Reset success status after 3 seconds
+      setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err: any) {
-      console.error(err);
-      alert(`❌ Save failed: ${err?.message ?? err}`);
+      console.error('Error saving keystrokes:', err);
+      setSaveStatus('error');
+      alert(` Save failed: ${err?.message ?? err}`);
     } finally {
       setIsSaving(false);
     }
@@ -65,17 +80,45 @@ export function KeystrokeDataDisplay({
 
           {/* Action Buttons */}
           {events.length > 0 && (
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <button
                 onClick={handleSaveToSupabase}
                 disabled={isSaving}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                  isSaving 
+                    ? 'bg-gray-400 cursor-not-allowed text-white' 
+                    : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
               >
                 {isSaving ? 'Saving…' : '💾 Save to Supabase'}
               </button>
+              
+              {saveStatus === 'success' && (
+                <span className="text-green-600 font-medium text-sm">
+                  ✓ Saved!
+                </span>
+              )}
+              
+              {saveStatus === 'error' && (
+                <span className="text-red-600 font-medium text-sm">
+                  ✗ Failed
+                </span>
+              )}
             </div>
           )}
         </div>
+
+        {/* Session Info */}
+        {sessionId && (
+          <div className="mb-3 p-2 bg-indigo-50 rounded border border-indigo-200">
+            <span className="text-xs text-gray-600">Session ID: </span>
+            <span className="font-mono text-xs font-semibold text-indigo-600">
+              {sessionId}
+            </span>
+            <span className="text-xs text-gray-600 ml-3">Test Type: </span>
+            <span className="font-semibold text-xs text-gray-800">{testType}</span>
+          </div>
+        )}
 
         {/* ===== ANALYTICS SUMMARY ===== */}
         {analytics && events.length > 0 && (
@@ -121,8 +164,6 @@ export function KeystrokeDataDisplay({
                 <th className="p-2 text-left font-semibold">Key</th>
                 <th className="p-2 text-left font-semibold">Code</th>
                 <th className="p-2 text-left font-semibold">Field</th>
-                <th className="p-2 text-left font-semibold">Challenge</th>
-                <th className="p-2 text-left font-semibold">Session</th>
                 <th className="p-2 text-left font-semibold">Elapsed (ms)</th>
                 <th className="p-2 text-left font-semibold">Timestamp</th>
                 <th className="p-2 text-left font-semibold">Device Info</th>
@@ -150,12 +191,6 @@ export function KeystrokeDataDisplay({
                   <td className="p-2 font-mono text-xs">{e.code}</td>
                   <td className="p-2 text-xs text-gray-700">
                     {e.fieldName ?? '-'}
-                  </td>
-                  <td className="p-2 text-xs text-gray-700">
-                    {e.challengeId ?? '-'}
-                  </td>
-                  <td className="p-2 text-xs text-gray-700">
-                    {e.sessionId ? e.sessionId.slice(-6) : '-'}
                   </td>
                   <td className="p-2 text-xs text-gray-700">
                     {e.elapsedSinceStart ?? '-'}

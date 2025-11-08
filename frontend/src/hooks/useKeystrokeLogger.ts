@@ -16,12 +16,18 @@ function genSessionId() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-export function useKeystrokeLogger() {
+export function useKeystrokeLogger(externalSessionId?: string) {
+  const sessionIdRef = useRef<string>(
+    externalSessionId || 
+    (globalThis.crypto?.randomUUID?.() ?? `sess_${Date.now()}`)
+  );
+  if (externalSessionId && sessionIdRef.current !== externalSessionId) {
+    sessionIdRef.current = externalSessionId;
+  }
   const keystrokeData = useRef<KeystrokeEvent[]>([]);
   const startTime = useRef<number | null>(null);
 
   // NEW context refs
-  const sessionIdRef = useRef<string>(genSessionId());
   const currentFieldRef = useRef<string | undefined>(undefined);
   const activeChallengeIdRef = useRef<number | null>(null);
   const deviceInfoRef = useRef<string>(navigator.userAgent);
@@ -119,48 +125,6 @@ export function useKeystrokeLogger() {
     } as KeystrokeAnalytics;
   }, []);
 
-  const exportAsJSON = useCallback(() => {
-    const data = {
-      events: keystrokeData.current,
-      analytics: getAnalytics(),
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `keystroke-data-${Date.now()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [getAnalytics]);
-
-  const exportAsCSV = useCallback(() => {
-    const headers = [
-      'Index','Event Type','Key','Code','Timestamp',
-      'SessionId','FieldName','ChallengeId','ElapsedSinceStart','DeviceInfo'
-    ];
-    const rows = keystrokeData.current.map((event, index) => [
-      index + 1,
-      event.eventType,
-      event.key,
-      event.code,
-      event.timestamp,
-      event.sessionId ?? '',
-      event.fieldName ?? '',
-      event.challengeId ?? '',
-      event.elapsedSinceStart ?? '',
-      (event.deviceInfo ?? '').replace(/,/g, ';'), // avoid CSV break
-    ]);
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `keystroke-data-${Date.now()}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, []);
-
   const getKeyPressDuration = useCallback((keyCode: string) => {
     const logs = keystrokeData.current;
     const durations: number[] = [];
@@ -203,8 +167,6 @@ export function useKeystrokeLogger() {
     getAnalytics,
     getKeyPressDuration,
     getInterKeyDelay,
-    exportAsJSON,
-    exportAsCSV,
   };
 }
 

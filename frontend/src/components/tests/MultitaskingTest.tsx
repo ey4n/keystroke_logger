@@ -8,8 +8,6 @@ interface MultitaskingTestProps {
   onTestDataUpdate: (data: {
     getLogs: () => any[];
     getAnalytics: () => any;
-    exportAsJSON: () => void;
-    exportAsCSV: () => void;
     formData: any;
   }) => void;
 }
@@ -66,7 +64,6 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     logKeyDown, logKeyUp,
     setFieldName, setActiveChallenge,
     clearLogs, getLogs, getAnalytics,
-    exportAsJSON, exportAsCSV
   } = useKeystrokeLogger();
 
   // Calculate completion percentage
@@ -86,8 +83,6 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     onTestDataUpdate({
       getLogs,
       getAnalytics,
-      exportAsJSON,
-      exportAsCSV,
       formData: {
         completionPercentage,
         filledFields,

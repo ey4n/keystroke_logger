@@ -10,8 +10,6 @@ interface FreeTypingTestProps {
   onTestDataUpdate: (data: {
     getLogs: () => any[];
     getAnalytics: () => any;
-    exportAsJSON: () => void;
-    exportAsCSV: () => void;
     formData: any;
   }) => void;
 }
@@ -25,20 +23,17 @@ export function Free({ sessionId, onTestDataUpdate }: FreeTypingTestProps) {
     clearLogs,
     getLogs,
     getAnalytics,
-    exportAsJSON,
-    exportAsCSV
-  } = useKeystrokeLogger();
+    setFieldName
+  } = useKeystrokeLogger(sessionId);
 
   // Update parent with current data functions and form data
   useEffect(() => {
     onTestDataUpdate({
       getLogs,
       getAnalytics,
-      exportAsJSON,
-      exportAsCSV,
       formData
     });
-  }, [formData, getLogs, getAnalytics, exportAsJSON, exportAsCSV]);
+  }, [formData, getLogs, getAnalytics]);
 
   const handleInputChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -49,6 +44,11 @@ export function Free({ sessionId, onTestDataUpdate }: FreeTypingTestProps) {
   const totalFields = Object.keys(formData).length;
   const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
+
+  const handleFieldFocus = (fieldName: keyof FormData) => {
+    console.log('question:', fieldName);
+    setFieldName(fieldName);  // ← Finally calls setFieldName!
+  };
 
   return (
     <div>
@@ -69,6 +69,7 @@ export function Free({ sessionId, onTestDataUpdate }: FreeTypingTestProps) {
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}
+        onFieldFocus={handleFieldFocus} 
         className="max-h-[500px] overflow-y-auto pr-2 mb-6"
       />
     </div>
