@@ -26,9 +26,9 @@ const AVAILABLE_TESTS: TestConfig[] = [
     enabled: true,
   },
   {
-    id: 'lying',
-    name: 'Lying Test',
-    description: 'Lie on some form fields',
+    id: 'noise',
+    name: 'Environmental Stimulations Test',
+    description: 'Complete form fields with environmental stimulation in the background',
     enabled: false,
   },
 ];
