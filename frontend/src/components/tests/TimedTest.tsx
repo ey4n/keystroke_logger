@@ -28,6 +28,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     clearLogs, 
     getLogs, 
     getAnalytics,
+    setFieldName
   } = useKeystrokeLogger();
   
   const timerRef = useRef<number | null>(null);
@@ -39,6 +40,11 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const totalFields = Object.keys(formData).length;
   const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
+
+  const handleFieldFocus = (fieldName: keyof FormData) => {
+      console.log('question:', fieldName);
+      setFieldName(fieldName);  // ← Finally calls setFieldName!
+    };
 
   // Update parent with current data
   useEffect(() => {
@@ -148,6 +154,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}
         disabled={timerExpired}
+        onFieldFocus={handleFieldFocus} 
         className="max-h-[500px] overflow-y-auto pr-2 mb-6"
       />
     </div>
