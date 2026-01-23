@@ -16,7 +16,7 @@ interface TimedTestProps {
 
 export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [timeLeft, setTimeLeft] = useState(120);
+  const [timeLeft, setTimeLeft] = useState(200);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerExpired, setTimerExpired] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
@@ -34,12 +34,17 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const timerRef = useRef<number | null>(null);
 
   // Calculate elapsed time
-  const elapsedTime = startTime ? 120 - timeLeft : 0;
+  const elapsedTime = startTime ? 200 - timeLeft : 0;
 
   // Calculate completion percentage
   const totalFields = Object.keys(formData).length;
   const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
+
+  // Calculate points: max points for completing all, -5 for each incomplete question
+  const maxPoints = totalFields * 5; // 5 points per question
+  const incompleteFields = totalFields - filledFields;
+  const score = Math.max(0, maxPoints - (incompleteFields * 5));
 
   const handleFieldFocus = (fieldName: keyof FormData) => {
       console.log('question:', fieldName);
@@ -51,16 +56,18 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     onTestDataUpdate({
       getLogs,
       getAnalytics,
-      formData: {
-        timeLimit: 120,
-        timeElapsed: elapsedTime,
-        timeRemaining: timeLeft,
-        timerExpired,
-        completionPercentage,
-        filledFields,
-        totalFields,
-        formSnapshot: formData,
-      }
+        formData: {
+          timeLimit: 200,
+          timeElapsed: elapsedTime,
+          timeRemaining: timeLeft,
+          timerExpired,
+          completionPercentage,
+          filledFields,
+          totalFields,
+          score,
+          maxPoints,
+          formSnapshot: formData,
+        }
     });
   }, [formData, timeLeft, timerExpired, elapsedTime, completionPercentage]);
 
@@ -103,6 +110,39 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
 
   return (
     <div>
+      {/* Points Bar */}
+      <div className="mb-6 p-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg border-4 border-indigo-300 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-white text-sm font-medium mb-1">Your Score</div>
+            <div className="text-white text-5xl font-bold">{score}</div>
+            <div className="text-indigo-100 text-xs mt-1">
+              Max: {maxPoints} points • {filledFields}/{totalFields} questions completed
+              {incompleteFields > 0 && (
+                <span className="ml-2">• {incompleteFields} incomplete (-{incompleteFields * 5} points)</span>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-white text-2xl font-bold mb-1">
+              {score >= maxPoints * 0.9 ? '🏆' : score >= maxPoints * 0.7 ? '⭐' : score >= maxPoints * 0.5 ? '👍' : '💪'}
+            </div>
+            <div className="text-indigo-100 text-xs">
+              {score >= maxPoints * 0.9 ? 'Perfect!' : score >= maxPoints * 0.7 ? 'Great!' : score >= maxPoints * 0.5 ? 'Good!' : 'Keep going!'}
+            </div>
+          </div>
+        </div>
+        {/* Progress Bar */}
+        <div className="mt-4">
+          <div className="w-full bg-indigo-300/30 rounded-full h-3 overflow-hidden">
+            <div 
+              className="bg-white h-full rounded-full transition-all duration-300"
+              style={{ width: `${(score / maxPoints) * 100}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Timer Status */}
       <div className={`mb-6 p-4 rounded-lg border-2 ${
         timerExpired ? 'bg-red-50 border-red-300' : 
@@ -119,7 +159,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
             <p className="text-sm text-gray-600">
               {timerExpired ? 'You ran out of time!' : 
                isTimerActive ? 'Fill out as much as you can!' : 
-               'Start typing to begin the 120-second challenge'}
+               'Start typing to begin the 200-second challenge'}
             </p>
           </div>
           <div className="text-right">
@@ -141,10 +181,18 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       {/* Instructions */}
       <div className="mb-6 p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
         <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
-        <p className="text-sm text-gray-700">
-          You have <strong>120 seconds</strong> to fill out as many fields as possible. 
+        <p className="text-sm text-gray-700 mb-3">
+          You have <strong>200 seconds</strong> to fill out as many fields as possible. 
           The timer starts as soon as you begin typing. Answer quickly but naturally!
         </p>
+        <div className="bg-white p-3 rounded border border-indigo-200">
+          <p className="text-sm font-semibold text-gray-800 mb-1">📊 Scoring System:</p>
+          <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside">
+            <li>Complete all questions to earn <strong>maximum points ({maxPoints} points)</strong></li>
+            <li>You lose <strong>5 points</strong> for each incomplete question</li>
+            <li>Your current score is displayed at the top</li>
+          </ul>
+        </div>
       </div>
 
       {/* Form */}
