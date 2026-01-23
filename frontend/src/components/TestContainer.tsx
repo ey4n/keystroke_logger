@@ -9,7 +9,19 @@ import { LyingTest } from '../components/tests/LyingTest';
 import { KeystrokeDataDisplay } from '../components/KeystrokeDataDisplay';
 import { TestType } from '../types/keystroke';
 
-export default function TestContainer() {
+interface ConsentData {
+  consentGiven: boolean;
+  deviceType: string;
+  primaryLanguage: string;
+  languageOther?: string;
+  browser: string;
+}
+
+interface TestContainerProps {
+  consentData?: ConsentData | null;
+}
+
+export default function TestContainer({ consentData }: TestContainerProps = {}) {
   const [currentTest, setCurrentTest] = useState<TestType>('free');
   const [showData, setShowData] = useState(true);
   const [sessionId, setSessionId] = useState<string>('');
@@ -32,12 +44,12 @@ export default function TestContainer() {
     console.log('Session started:', id);
   }, []);
 
-  // Generate new session when requested
+  // Generate new session when requested - clears consent and reloads page
   const regenerateSession = () => {
-    const id = globalThis.crypto?.randomUUID?.() ?? `sess_${Date.now()}`;
-    setSessionId(id);
-    setShowData(false);
-    console.log('New session started:', id);
+    // Clear consent from sessionStorage
+    sessionStorage.removeItem('keystroke_consent');
+    // Reload page to show consent form again
+    window.location.reload();
   };
 
   const handleShowData = () => setShowData(prev => !prev);

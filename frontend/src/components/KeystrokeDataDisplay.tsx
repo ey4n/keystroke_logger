@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { KeystrokeEvent } from '../types/keystroke';
 import { KeystrokeAnalytics } from '../hooks/useKeystrokeLogger';
 import { saveKeystrokesNoAuth } from '../services/saveKeystrokes';
+import { StressWorkloadForm, StressWorkloadData } from './StressWorkloadForm';
+import { saveStressWorkload } from '../services/saveStressWorkload';
 
 interface KeystrokeDataDisplayProps {
   events: KeystrokeEvent[];
@@ -24,6 +26,7 @@ export function KeystrokeDataDisplay({
 }: KeystrokeDataDisplayProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [showStressForm, setShowStressForm] = useState(false);
 
   async function handleSaveToSupabase() {
     if (events.length === 0) {
@@ -31,6 +34,13 @@ export function KeystrokeDataDisplay({
       return;
     }
 
+    // Show stress form first
+    setShowStressForm(true);
+  }
+
+  async function handleStressFormSubmit(stressData: StressWorkloadData) {
+    setShowStressForm(false);
+    
     try {
       setIsSaving(true);
       setSaveStatus('idle');
@@ -40,6 +50,7 @@ export function KeystrokeDataDisplay({
         key: ev.key,
         eventType: ev.eventType,
         pressed_at: ev.timestamp,
+        timestamp: ev.timestamp,
         code: ev.code,
         sessionId: sessionId || ev.sessionId, // Use sessionId from props first
         testType: testType, 
@@ -52,27 +63,42 @@ export function KeystrokeDataDisplay({
 
       console.log(`Saving ${enrichedEvents.length} keystroke events for session ${sessionId}...`);
       
-      const res = await saveKeystrokesNoAuth(enrichedEvents);
+      // Save keystroke data
+      const keystrokeRes = await saveKeystrokesNoAuth(enrichedEvents);
+      console.log(`✅ Successfully saved ${keystrokeRes.count} keystroke events!`);
 
-      console.log(`✅ Successfully saved ${res.count} keystroke events!`);
+      // Save stress/workload data
+      await saveStressWorkload(sessionId || '', testType, stressData);
+      console.log(`✅ Successfully saved stress/workload data!`);
+
       setSaveStatus('success');
-      alert(`✅ Saved ${res.count} keystrokes to Supabase`);
+      alert(`✅ Saved ${keystrokeRes.count} keystrokes and stress/workload data to Supabase`);
       
       // Reset success status after 3 seconds
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err: any) {
-      console.error('Error saving keystrokes:', err);
+      console.error('Error saving data:', err);
       setSaveStatus('error');
-      alert(` Save failed: ${err?.message ?? err}`);
+      alert(`❌ Save failed: ${err?.message ?? err}`);
     } finally {
       setIsSaving(false);
     }
   }
 
+
   return (
-    <div className="mt-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-      {/* ===== HEADER ===== */}
-      <div className="mb-4">
+    <>
+      {/* Stress/Workload Form Modal */}
+      {showStressForm && (
+        <StressWorkloadForm
+          onSubmit={handleStressFormSubmit}
+          onCancel={() => setShowStressForm(false)}
+        />
+      )}
+
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+        {/* ===== HEADER ===== */}
+        <div className="mb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-800">
             Keystroke Data ({events.length} events)
@@ -149,10 +175,10 @@ export function KeystrokeDataDisplay({
             </div>
           </div>
         )}
-      </div>
+        </div>
 
-      {/* ===== DATA TABLE ===== */}
-      <div className="max-h-96 overflow-y-auto">
+        {/* ===== DATA TABLE ===== */}
+        <div className="max-h-96 overflow-y-auto">
         {events.length === 0 ? (
           <p className="text-gray-500 italic">No data captured yet. Start typing!</p>
         ) : (
@@ -204,7 +230,8 @@ export function KeystrokeDataDisplay({
             </tbody>
           </table>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
