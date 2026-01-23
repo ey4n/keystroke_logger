@@ -30,7 +30,9 @@ export function useKeystrokeLogger(externalSessionId?: string) {
   // NEW context refs
   const currentFieldRef = useRef<string | undefined>(undefined);
   const activeChallengeIdRef = useRef<number | null>(null);
-  const deviceInfoRef = useRef<string>(navigator.userAgent);
+  const deviceInfoRef = useRef<string>(
+    typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown'
+  );
 
   // expose setters so components can tell us which field/challenge is active
   const setFieldName = useCallback((name?: string) => {

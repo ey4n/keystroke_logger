@@ -25,6 +25,8 @@ interface ShortInputFieldProps {
   onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   disabled?: boolean;
+  type?: string;
+  max?: number;
 }
 
 export const ShortInputField = ({ 
@@ -35,22 +37,93 @@ export const ShortInputField = ({
   onKeyUp,
   onFocus,
   onBlur,
-  disabled = false
+  disabled = false,
+  type,
+  max
 }: ShortInputFieldProps) => {
+  const isAgeField = label.toLowerCase() === 'age';
+  const inputType = type || (isAgeField ? 'text' : 'text'); // Use text type for better control
+  const maxValue = max !== undefined ? max : (isAgeField ? 100 : undefined);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Call the original onKeyDown for keystroke logging
+    if (onKeyDown) onKeyDown(e);
+    
+    // For age fields, prevent non-numeric keys
+    if (isAgeField) {
+      const key = e.key;
+      // Allow: backspace, delete, tab, escape, enter, and arrow keys
+      if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(key)) {
+        return;
+      }
+      // Allow: Ctrl/Cmd + A, C, V, X, Z (for copy/paste/undo)
+      if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x', 'z'].includes(key.toLowerCase())) {
+        return;
+      }
+      // Only allow digits 0-9
+      if (!/^\d$/.test(key)) {
+        e.preventDefault();
+        return;
+      }
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isAgeField) {
+      const inputValue = e.target.value;
+      // Allow empty string for clearing
+      if (inputValue === '') {
+        onChange(e);
+        return;
+      }
+      // Remove any non-digit characters (handles paste events)
+      const numericValue = inputValue.replace(/\D/g, '');
+      if (numericValue !== inputValue) {
+        // Create a new event with the filtered value
+        const syntheticEvent = {
+          ...e,
+          target: {
+            ...e.target,
+            value: numericValue
+          }
+        } as React.ChangeEvent<HTMLInputElement>;
+        onChange(syntheticEvent);
+        return;
+      }
+      // Check max value
+      const numValue = parseInt(numericValue, 10);
+      if (maxValue !== undefined && numValue > maxValue) {
+        // Clamp to max value
+        const syntheticEvent = {
+          ...e,
+          target: {
+            ...e.target,
+            value: maxValue.toString()
+          }
+        } as React.ChangeEvent<HTMLInputElement>;
+        onChange(syntheticEvent);
+        return;
+      }
+    }
+    onChange(e);
+  };
+
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">
         {label}
       </label>
       <input
-        type="text"
+        type={inputType}
+        inputMode={isAgeField ? 'numeric' : undefined}
         value={value}
-        onChange={onChange}
-        onKeyDown={onKeyDown}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
         onKeyUp={onKeyUp}
         onFocus={onFocus}
         onBlur={onBlur}
         disabled={disabled}
+        maxLength={isAgeField ? 3 : undefined}
         className={`w-full p-2 border-2 rounded-lg focus:ring-2 outline-none transition-all ${
           disabled 
             ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 

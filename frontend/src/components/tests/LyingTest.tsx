@@ -49,6 +49,70 @@ const ShortInputField = ({
   mode: FieldMode;
 }) => {
   const isTruth = mode === 'truth';
+  const isAgeField = label.toLowerCase() === 'age';
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Call the original onKeyDown for keystroke logging
+    if (onKeyDown) onKeyDown(e);
+    
+    // For age fields, prevent non-numeric keys
+    if (isAgeField) {
+      const key = e.key;
+      // Allow: backspace, delete, tab, escape, enter, and arrow keys
+      if (['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(key)) {
+        return;
+      }
+      // Allow: Ctrl/Cmd + A, C, V, X, Z (for copy/paste/undo)
+      if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x', 'z'].includes(key.toLowerCase())) {
+        return;
+      }
+      // Only allow digits 0-9
+      if (!/^\d$/.test(key)) {
+        e.preventDefault();
+        return;
+      }
+    }
+  };
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isAgeField) {
+      const inputValue = e.target.value;
+      // Allow empty string for clearing
+      if (inputValue === '') {
+        onChange(e);
+        return;
+      }
+      // Remove any non-digit characters (handles paste events)
+      const numericValue = inputValue.replace(/\D/g, '');
+      if (numericValue !== inputValue) {
+        // Create a new event with the filtered value
+        const syntheticEvent = {
+          ...e,
+          target: {
+            ...e.target,
+            value: numericValue
+          }
+        } as React.ChangeEvent<HTMLInputElement>;
+        onChange(syntheticEvent);
+        return;
+      }
+      // Check max value (100)
+      const numValue = parseInt(numericValue, 10);
+      if (numValue > 100) {
+        // Clamp to max value
+        const syntheticEvent = {
+          ...e,
+          target: {
+            ...e.target,
+            value: '100'
+          }
+        } as React.ChangeEvent<HTMLInputElement>;
+        onChange(syntheticEvent);
+        return;
+      }
+    }
+    onChange(e);
+  };
   
   return (
     <div>
@@ -57,10 +121,12 @@ const ShortInputField = ({
       </label>
       <input
         type="text"
+        inputMode={isAgeField ? 'numeric' : undefined}
         value={value}
-        onChange={onChange}
-        onKeyDown={onKeyDown}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
         onKeyUp={onKeyUp}
+        maxLength={isAgeField ? 3 : undefined}
         className={`w-full p-2 border-2 rounded-lg focus:ring-2 outline-none transition-all ${
           isTruth 
             ? 'border-green-300 bg-green-50 focus:border-green-500 focus:ring-green-200' 

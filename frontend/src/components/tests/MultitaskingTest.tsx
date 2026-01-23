@@ -70,13 +70,20 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   const totalFields = Object.keys(formData).length;
   const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
+  const isFormComplete = completionPercentage === 100;
 
   // Calculate challenge statistics
   const correctChallenges = challengeResults.filter(r => r.isCorrect).length;
+  const incorrectChallenges = challengeResults.filter(r => !r.isCorrect).length;
   const timedOutChallenges = challengeResults.filter(r => r.timedOut).length;
   const avgResponseTime = challengeResults.length > 0
     ? Math.round(challengeResults.reduce((sum, r) => sum + r.timeToAnswer, 0) / challengeResults.length)
     : 0;
+
+  // Calculate score: 100 points for completing form, -5 for each wrong challenge
+  const baseScore = isFormComplete ? 100 : 0;
+  const penalty = incorrectChallenges * 5;
+  const score = Math.max(0, baseScore - penalty);
 
   // Update parent with current data
   useEffect(() => {
@@ -176,7 +183,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   const handleChallengeTimeout = () => {
     if (currentChallenge && challengeStartTime) {
-      // Record timeout result
+      // Record timeout result (counts as incorrect, -10 points)
       const result: ChallengeResult = {
         challengeId: currentChallenge.id,
         type: currentChallenge.type,
@@ -190,7 +197,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
       setChallengeResults(prev => [...prev, result]);
     }
 
-    setAnswerError('⏰ Time expired! Moving on...');
+    setAnswerError('⏰ Time expired! -5 points');
     setTimeout(() => {
       setCurrentChallenge(null);
       setActiveChallenge(null);
@@ -208,7 +215,19 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     const isCorrect = normalize(userAnswer) === normalize(currentChallenge.correctAnswer);
     
     if (!isCorrect) {
-      setAnswerError('❌ Incorrect! Try again.');
+      // Record incorrect answer immediately (-5 points)
+      const incorrectResult: ChallengeResult = {
+        challengeId: currentChallenge.id,
+        type: currentChallenge.type,
+        question: currentChallenge.question,
+        userAnswer: userAnswer,
+        correctAnswer: currentChallenge.correctAnswer,
+        isCorrect: false,
+        timeToAnswer: Date.now() - challengeStartTime,
+        timedOut: false,
+      };
+      setChallengeResults(prev => [...prev, incorrectResult]);
+      setAnswerError('❌ Incorrect! -5 points. Try again.');
       return;
     }
 
@@ -262,6 +281,30 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   return (
     <div className="relative">
+      {/* Score Display - Prominent */}
+      <div className="mb-6 p-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg border-4 border-indigo-300 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-white text-sm font-medium mb-1">Your Score</div>
+            <div className="text-white text-5xl font-bold">{score}</div>
+            <div className="text-indigo-100 text-xs mt-1">
+              {isFormComplete ? '✓ Form Complete (+100)' : `Complete form to earn 100 points`}
+              {incorrectChallenges > 0 && (
+                <span className="ml-2">• {incorrectChallenges} wrong challenge{incorrectChallenges !== 1 ? 's' : ''} (-{incorrectChallenges * 5})</span>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-white text-2xl font-bold mb-1">
+              {score >= 90 ? '🏆' : score >= 70 ? '⭐' : score >= 50 ? '👍' : '💪'}
+            </div>
+            <div className="text-indigo-100 text-xs">
+              {score >= 90 ? 'Excellent!' : score >= 70 ? 'Great!' : score >= 50 ? 'Good!' : 'Keep going!'}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Instructions */}
       <div className="mb-6 p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
         <h3 className="font-semibold text-gray-800 mb-2">🧠 Multitasking Challenge</h3>
