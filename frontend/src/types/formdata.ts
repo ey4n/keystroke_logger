@@ -7,6 +7,17 @@ export interface FormData {
   morningRoutine: string;
   favoriteMemory: string;
   weekendActivity: string;
+  calmExperience: string;
+  stressfulSituation: string;
+  idealHoliday: string;
+  fiveYearsFromNow: string;
+  dayPlanning: string;
+  taskTracking: string;
+  unexpectedChanges: string;
+  recentLearning: string;
+  decisionMaking: string;
+  explainingTasks: string;
+  transcription: string;
 }
 
 export const initialFormData: FormData = {
@@ -17,4 +28,15 @@ export const initialFormData: FormData = {
   morningRoutine: '',
   favoriteMemory: '',
   weekendActivity: '',
+  calmExperience: '',
+  stressfulSituation: '',
+  idealHoliday: '',
+  fiveYearsFromNow: '',
+  dayPlanning: '',
+  taskTracking: '',
+  unexpectedChanges: '',
+  recentLearning: '',
+  decisionMaking: '',
+  explainingTasks: '',
+  transcription: '',
 };

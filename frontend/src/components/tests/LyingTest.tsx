@@ -18,6 +18,17 @@ interface FormData {
   morningRoutine: string;
   favoriteMemory: string;
   weekendActivity: string;
+  calmExperience: string;
+  stressfulSituation: string;
+  idealHoliday: string;
+  fiveYearsFromNow: string;
+  dayPlanning: string;
+  taskTracking: string;
+  unexpectedChanges: string;
+  recentLearning: string;
+  decisionMaking: string;
+  explainingTasks: string;
+  transcription: string;
 }
 
 type FieldMode = 'truth' | 'lie';
@@ -143,7 +154,8 @@ const LongTextArea = ({
   onChange,
   onKeyDown,
   onKeyUp,
-  mode
+  mode,
+  rows = 3
 }: { 
   label: string;
   value: string;
@@ -151,6 +163,7 @@ const LongTextArea = ({
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   mode: FieldMode;
+  rows?: number;
 }) => {
   const isTruth = mode === 'truth';
   
@@ -164,7 +177,7 @@ const LongTextArea = ({
         onChange={onChange}
         onKeyDown={onKeyDown}
         onKeyUp={onKeyUp}
-        rows={3}
+        rows={rows}
         className={`w-full p-2 border-2 rounded-lg focus:ring-2 outline-none transition-all resize-none ${
           isTruth 
             ? 'border-green-300 bg-green-50 focus:border-green-500 focus:ring-green-200' 
@@ -184,6 +197,17 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
     morningRoutine: '',
     favoriteMemory: '',
     weekendActivity: '',
+    calmExperience: '',
+    stressfulSituation: '',
+    idealHoliday: '',
+    fiveYearsFromNow: '',
+    dayPlanning: '',
+    taskTracking: '',
+    unexpectedChanges: '',
+    recentLearning: '',
+    decisionMaking: '',
+    explainingTasks: '',
+    transcription: '',
   });
 
   // Randomly assign truth/lie to each field (memoized so it doesn't change on re-render)
@@ -213,6 +237,17 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
       morningRoutine: '',
       favoriteMemory: '',
       weekendActivity: '',
+      calmExperience: '',
+      stressfulSituation: '',
+      idealHoliday: '',
+      fiveYearsFromNow: '',
+      dayPlanning: '',
+      taskTracking: '',
+      unexpectedChanges: '',
+      recentLearning: '',
+      decisionMaking: '',
+      explainingTasks: '',
+      transcription: '',
     });
     clearLogs();
     onClearData();
@@ -229,7 +264,7 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
     />
   );
 
-  const renderLongText = (label: string, field: keyof FormData) => (
+  const renderLongText = (label: string, field: keyof FormData, rows?: number) => (
     <LongTextArea
       label={label}
       value={formData[field]}
@@ -237,6 +272,7 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
       onKeyDown={logKeyDown as any}
       onKeyUp={logKeyUp as any}
       mode={fieldModes[field]}
+      rows={rows}
     />
   );
 
@@ -274,6 +310,35 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
           {renderLongText("Describe your typical morning routine", "morningRoutine")}
           {renderLongText("What's your favorite memory from the past year?", "favoriteMemory")}
           {renderLongText("How do you typically spend your weekends?", "weekendActivity")}
+          {renderLongText("Describe a recent experience that you found calm or relaxing.", "calmExperience")}
+          {renderLongText("Describe a recent situation where you felt stressed, pressured, or overwhelmed.", "stressfulSituation")}
+          {renderLongText("What would be your ideal holiday?", "idealHoliday")}
+          {renderLongText("Where do you see yourself 5 years from now?", "fiveYearsFromNow")}
+          {renderLongText("Describe how you usually plan your day when you wake up.", "dayPlanning")}
+          {renderLongText("Explain how you usually keep track of tasks, reminders, or deadlines.", "taskTracking")}
+          {renderLongText("Describe how you typically respond when your plans change unexpectedly.", "unexpectedChanges")}
+          {renderLongText("Describe something you learned recently that you found useful.", "recentLearning")}
+          {renderLongText("Explain how you usually make decisions when choosing between options.", "decisionMaking")}
+          {renderLongText("Describe how you would explain a simple task or process to someone unfamiliar with it.", "explainingTasks")}
+        </FormSection>
+
+        {/* Transcription Task Section */}
+        <FormSection title="Transcription Task">
+          <div className="mb-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+            <p className="text-sm font-semibold text-gray-800 mb-2">Instructions:</p>
+            <p className="text-sm text-gray-700 mb-3">
+              Please read the paragraph below carefully, then type it exactly as shown in the text box.
+            </p>
+            <div className="bg-white p-4 rounded border border-blue-300">
+              <p className="text-sm text-gray-800 leading-relaxed font-mono">
+                "Modern workplaces often require individuals to manage multiple tasks under strict deadlines.
+                Responding to emails, completing reports, and coordinating with others can become stressful,
+                especially when unexpected changes occur. Maintaining focus and accuracy during such situations
+                is important for effective performance."
+              </p>
+            </div>
+          </div>
+          {renderLongText("Type the paragraph above exactly as shown:", "transcription", 6)}
         </FormSection>
       </div>
 

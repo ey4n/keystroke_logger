@@ -143,6 +143,7 @@ interface LongTextAreaProps {
   onFocus?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   disabled?: boolean;
+  rows?: number;
 }
 
 export const LongTextArea = ({ 
@@ -153,7 +154,8 @@ export const LongTextArea = ({
   onKeyUp,
   onFocus,
   onBlur,
-  disabled = false
+  disabled = false,
+  rows = 3
 }: LongTextAreaProps) => {
   return (
     <div>
@@ -168,7 +170,7 @@ export const LongTextArea = ({
         onFocus={onFocus}
         onBlur={onBlur}
         disabled={disabled}
-        rows={3}
+        rows={rows}
         className={`w-full p-2 border-2 rounded-lg focus:ring-2 outline-none transition-all resize-none ${
           disabled 
             ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
