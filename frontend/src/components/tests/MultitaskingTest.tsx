@@ -55,10 +55,38 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   const [answerError, setAnswerError] = useState<string | null>(null);
   const [challengeResults, setChallengeResults] = useState<ChallengeResult[]>([]);
   const [challengeStartTime, setChallengeStartTime] = useState<number | null>(null);
+  const [testCompleted, setTestCompleted] = useState(false);
 
   const challengeTimerRef = useRef<number | null>(null);
   const nextChallengeTimerRef = useRef<number | null>(null);
   const challengesShownRef = useRef(0);
+
+  // Listen for save button click via custom event to stop challenges
+  useEffect(() => {
+    const handleSaveClick = () => {
+      setTestCompleted(true);
+      // Clear any pending challenge timers
+      if (nextChallengeTimerRef.current) {
+        clearTimeout(nextChallengeTimerRef.current);
+        nextChallengeTimerRef.current = null;
+      }
+      // Clear challenge countdown timer
+      if (challengeTimerRef.current) {
+        clearTimeout(challengeTimerRef.current);
+        challengeTimerRef.current = null;
+      }
+      // Dismiss current challenge
+      setCurrentChallenge(null);
+      setActiveChallenge(null);
+      setIsFormDisabled(false);
+    };
+    
+    window.addEventListener('multitasking-test-save-clicked', handleSaveClick);
+    
+    return () => {
+      window.removeEventListener('multitasking-test-save-clicked', handleSaveClick);
+    };
+  }, []);
 
   const {
     logKeyDown, logKeyUp,
@@ -100,9 +128,10 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         averageResponseTime: avgResponseTime,
         challengeResults: challengeResults,
         formSnapshot: formData,
+        score: score, // Add score to formData
       }
     });
-  }, [formData, completedChallenges, challengeResults, completionPercentage]);
+  }, [formData, completedChallenges, challengeResults, completionPercentage, score]);
 
   // Generate challenges
   const generateChallenge = (): Challenge => {
@@ -151,10 +180,14 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   // Schedule next challenge
   const scheduleNextChallenge = () => {
-    if (challengesShownRef.current >= PACE.maxChallenges) return;
+    // Don't schedule if test is completed or max challenges reached
+    if (testCompleted || challengesShownRef.current >= PACE.maxChallenges) return;
 
     const delay = PACE.minDelayMs + Math.random() * (PACE.maxDelayMs - PACE.minDelayMs);
     nextChallengeTimerRef.current = window.setTimeout(() => {
+      // Double-check test isn't completed before showing challenge
+      if (testCompleted) return;
+      
       const challenge = generateChallenge();
       setCurrentChallenge(challenge);
       setActiveChallenge(challenge.id);
@@ -168,18 +201,29 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   // Challenge timer countdown
   useEffect(() => {
+    // Don't run timer if test is completed
+    if (testCompleted) {
+      if (challengeTimerRef.current) {
+        clearTimeout(challengeTimerRef.current);
+        challengeTimerRef.current = null;
+      }
+      return;
+    }
+
     if (currentChallenge && challengeTimer > 0) {
       challengeTimerRef.current = window.setTimeout(() => {
-        setChallengeTimer(prev => prev - 1);
+        if (!testCompleted) {
+          setChallengeTimer(prev => prev - 1);
+        }
       }, 1000);
-    } else if (currentChallenge && challengeTimer === 0) {
+    } else if (currentChallenge && challengeTimer === 0 && !testCompleted) {
       handleChallengeTimeout();
     }
 
     return () => {
       if (challengeTimerRef.current) clearTimeout(challengeTimerRef.current);
     };
-  }, [currentChallenge, challengeTimer]);
+  }, [currentChallenge, challengeTimer, testCompleted]);
 
   const handleChallengeTimeout = () => {
     if (currentChallenge && challengeStartTime) {

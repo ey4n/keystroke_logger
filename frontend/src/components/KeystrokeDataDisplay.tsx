@@ -6,6 +6,7 @@ import { StressWorkloadForm, StressWorkloadData } from './StressWorkloadForm';
 import { saveStressWorkload } from '../services/saveStressWorkload';
 import { saveLeaderboardEntry } from '../services/saveLeaderboard';
 import { Leaderboard } from './Leaderboard';
+import { calculateTranscriptionPenalty } from '../utils/transcriptionValidation';
 
 interface KeystrokeDataDisplayProps {
   events: KeystrokeEvent[];
@@ -35,6 +36,11 @@ export function KeystrokeDataDisplay({
     if (events.length === 0) {
       alert('No keystroke data to save!');
       return;
+    }
+
+    // Stop challenges for multitasking test
+    if (testType === 'multitasking') {
+      window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
     }
 
     // Show stress form first
@@ -74,29 +80,48 @@ export function KeystrokeDataDisplay({
       await saveStressWorkload(sessionId || '', testType, stressData);
       console.log(`✅ Successfully saved stress/workload data!`);
 
+      // Validate transcription and calculate penalty
+      const transcriptionText = formData?.formSnapshot?.transcription || formData?.transcription || '';
+      const transcriptionPenalty = calculateTranscriptionPenalty(transcriptionText);
+      
+      if (transcriptionPenalty > 0) {
+        console.log(`⚠️ Transcription validation failed. Deducting ${transcriptionPenalty} points.`);
+      } else {
+        console.log(`✅ Transcription validation passed!`);
+      }
+
       // Save leaderboard entry for timed and multitasking tests
       if ((testType === 'timed' || testType === 'multitasking') && formData) {
         try {
           const userName = formData.formSnapshot?.fullName || formData.fullName || 'Anonymous';
           
           if (testType === 'timed') {
+            // For timed test, apply transcription penalty to score
+            const baseScore = formData.score !== undefined ? formData.score : 0;
+            const finalScore = Math.max(0, baseScore - transcriptionPenalty);
             const timeTaken = formData.timeElapsed || 0; // Time in seconds
+            
+            // Note: Timed test leaderboard uses time, but we can store score too if needed
             await saveLeaderboardEntry({
               userName,
               testType: 'timed',
               timeTaken,
               sessionId: sessionId || '',
             });
-            console.log(`✅ Saved leaderboard entry for timed test: ${timeTaken}s`);
+            console.log(`✅ Saved leaderboard entry for timed test: ${timeTaken}s (score: ${finalScore} after transcription penalty)`);
           } else if (testType === 'multitasking') {
-            const score = formData.score || 0;
+            // For multitasking test, apply transcription penalty to score
+            const baseScore = formData.score !== undefined ? formData.score : 0;
+            const finalScore = Math.max(0, baseScore - transcriptionPenalty);
+            console.log(`Base score: ${baseScore}, Transcription penalty: ${transcriptionPenalty}, Final score: ${finalScore}`);
+            
             await saveLeaderboardEntry({
               userName,
               testType: 'multitasking',
-              score,
+              score: finalScore,
               sessionId: sessionId || '',
             });
-            console.log(`✅ Saved leaderboard entry for multitasking test: ${score} points`);
+            console.log(`✅ Saved leaderboard entry for multitasking test: ${finalScore} points (${baseScore} - ${transcriptionPenalty} transcription penalty)`);
           }
         } catch (leaderboardError) {
           console.error('Error saving leaderboard entry:', leaderboardError);
@@ -106,9 +131,21 @@ export function KeystrokeDataDisplay({
 
       setSaveStatus('success');
       
+      // Show transcription validation result
+      let saveMessage = `✅ Saved ${keystrokeRes.count} keystrokes and stress/workload data to Supabase`;
+      if (transcriptionPenalty > 0) {
+        saveMessage += `\n⚠️ Transcription validation: ${transcriptionPenalty} points deducted due to errors.`;
+      } else if (transcriptionText.trim() !== '') {
+        saveMessage += `\n✅ Transcription validation: Perfect! No errors found.`;
+      }
+      
       // Show leaderboard for timed and multitasking tests
       if (testType === 'timed' || testType === 'multitasking') {
         setShowLeaderboard(true);
+        // Show alert with transcription result
+        if (transcriptionPenalty > 0) {
+          alert(saveMessage);
+        }
         // Scroll to leaderboard
         setTimeout(() => {
           const leaderboardElement = document.querySelector('[data-leaderboard]');
@@ -117,7 +154,7 @@ export function KeystrokeDataDisplay({
           }
         }, 100);
       } else {
-        alert(`✅ Saved ${keystrokeRes.count} keystrokes and stress/workload data to Supabase`);
+        alert(saveMessage);
       }
       
       // Reset success status after 3 seconds
@@ -134,8 +171,18 @@ export function KeystrokeDataDisplay({
 
   // Extract user data for leaderboard
   const userName = formData?.formSnapshot?.fullName || formData?.fullName;
-  const currentScore = formData?.score;
+  let currentScore = formData?.score;
   const currentTime = formData?.timeElapsed;
+  
+  // Calculate transcription validation for leaderboard display
+  const transcriptionText = formData?.formSnapshot?.transcription || formData?.transcription || '';
+  const transcriptionPenalty = calculateTranscriptionPenalty(transcriptionText);
+  const hasTranscriptionError = transcriptionPenalty > 0;
+  
+  // Apply transcription penalty to current score for display
+  if ((testType === 'timed' || testType === 'multitasking') && currentScore !== undefined) {
+    currentScore = Math.max(0, currentScore - transcriptionPenalty);
+  }
 
   return (
     <>
@@ -150,14 +197,31 @@ export function KeystrokeDataDisplay({
       {/* Leaderboard - shown after successful save for timed/multitasking tests */}
       {showLeaderboard && (testType === 'timed' || testType === 'multitasking') && (
         <div data-leaderboard>
-          <div className="mb-4 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+          <div className={`mb-4 p-4 border-2 rounded-lg ${
+            hasTranscriptionError 
+              ? 'bg-yellow-50 border-yellow-300' 
+              : 'bg-green-50 border-green-300'
+          }`}>
             <div className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-green-800 font-medium">
-                ✅ Successfully saved! Check out the leaderboard below to see how you rank!
-              </p>
+              {hasTranscriptionError ? (
+                <>
+                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <p className="text-yellow-800 font-medium">
+                    ✅ Successfully saved! ⚠️ Transcription had errors: -{transcriptionPenalty} points deducted. Check the leaderboard below!
+                  </p>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-green-800 font-medium">
+                    ✅ Successfully saved! ✅ Perfect transcription! Check out the leaderboard below to see how you rank!
+                  </p>
+                </>
+              )}
             </div>
           </div>
           <Leaderboard

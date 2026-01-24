@@ -17,56 +17,81 @@ interface StressWorkloadFormProps {
 }
 
 export function StressWorkloadForm({ onSubmit, onCancel }: StressWorkloadFormProps) {
-  const [stressLevel, setStressLevel] = useState(50);
-  const [mentalDemand, setMentalDemand] = useState(50);
-  const [rushedFeeling, setRushedFeeling] = useState(50);
-  const [concentrationDifficulty, setConcentrationDifficulty] = useState(50);
+  const [stressLevel, setStressLevel] = useState<number | null>(null);
+  const [mentalDemand, setMentalDemand] = useState<number | null>(null);
+  const [rushedFeeling, setRushedFeeling] = useState<number | null>(null);
+  const [concentrationDifficulty, setConcentrationDifficulty] = useState<number | null>(null);
   const [moreStressedThanBaseline, setMoreStressedThanBaseline] = useState<'Yes' | 'No' | 'Unsure'>('Unsure');
   const [discomfortOrDistraction, setDiscomfortOrDistraction] = useState('');
 
+  // Convert 1-10 scale to 0-100 for database (rounded to integer)
+  const scaleTo100 = (value: number): number => {
+    // Map 1 -> 0, 10 -> 100, then round to integer
+    return Math.round(((value - 1) / 9) * 100);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate all fields are selected
+    if (stressLevel === null || mentalDemand === null || rushedFeeling === null || concentrationDifficulty === null) {
+      alert('Please rate all questions before submitting.');
+      return;
+    }
+
     onSubmit({
-      stressLevel,
-      mentalDemand,
-      rushedFeeling,
-      concentrationDifficulty,
+      stressLevel: scaleTo100(stressLevel),
+      mentalDemand: scaleTo100(mentalDemand),
+      rushedFeeling: scaleTo100(rushedFeeling),
+      concentrationDifficulty: scaleTo100(concentrationDifficulty),
       moreStressedThanBaseline,
       discomfortOrDistraction: discomfortOrDistraction.trim() || undefined,
     });
   };
 
-  const SliderField = ({ 
+  const RatingScale = ({ 
     label, 
     value, 
     onChange 
   }: { 
     label: string; 
-    value: number; 
+    value: number | null; 
     onChange: (value: number) => void;
-  }) => (
-    <div className="space-y-2">
-      <div className="flex justify-between items-center">
-        <label className="text-sm font-medium text-gray-700">{label}</label>
-        <span className="text-sm font-semibold text-indigo-600">{value}</span>
+  }) => {
+    return (
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-700">{label}</label>
+        <div className="flex gap-2">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
+            <button
+              key={rating}
+              type="button"
+              onClick={() => onChange(rating)}
+              className={`
+                flex-1 py-3 px-2 rounded-lg font-semibold text-sm
+                transition-all duration-200 transform hover:scale-105 active:scale-95
+                ${value === rating
+                  ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300 ring-offset-2'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-gray-300'
+                }
+              `}
+            >
+              {rating}
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 px-1">
+          <span>1 (Not at all)</span>
+          <span>10 (Extremely)</span>
+        </div>
+        {value !== null && (
+          <div className="text-center">
+            <span className="text-sm font-semibold text-indigo-600">Selected: {value}</span>
+          </div>
+        )}
       </div>
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value, 10))}
-        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-        style={{
-          background: `linear-gradient(to right, #4f46e5 0%, #4f46e5 ${value}%, #e5e7eb ${value}%, #e5e7eb 100%)`
-        }}
-      />
-      <div className="flex justify-between text-xs text-gray-500">
-        <span>0 (Not at all)</span>
-        <span>100 (Extremely)</span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -76,34 +101,34 @@ export function StressWorkloadForm({ onSubmit, onCancel }: StressWorkloadFormPro
             Post-Task Stress & Workload Self-Report
           </h2>
           <p className="text-gray-600 text-sm mb-6">
-            Please rate your experience during the previous task using the sliders below.
+            Please rate your experience during the previous task using the scale below (1-10).
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Stress Level */}
-            <SliderField
-              label="How stressed did you feel during the previous task? (0–100)"
+            <RatingScale
+              label="How stressed did you feel during the previous task?"
               value={stressLevel}
               onChange={setStressLevel}
             />
 
             {/* Mental Demand */}
-            <SliderField
-              label="How mentally demanding was the task? (0–100)"
+            <RatingScale
+              label="How mentally demanding was the task?"
               value={mentalDemand}
               onChange={setMentalDemand}
             />
 
             {/* Rushed Feeling */}
-            <SliderField
-              label="How rushed did you feel? (0–100)"
+            <RatingScale
+              label="How rushed did you feel?"
               value={rushedFeeling}
               onChange={setRushedFeeling}
             />
 
             {/* Concentration Difficulty */}
-            <SliderField
-              label="How difficult was it to concentrate? (0–100)"
+            <RatingScale
+              label="How difficult was it to concentrate?"
               value={concentrationDifficulty}
               onChange={setConcentrationDifficulty}
             />
