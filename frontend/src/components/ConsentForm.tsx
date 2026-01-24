@@ -141,6 +141,9 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
               <option value="Laptop (built-in keyboard)">Laptop (built-in keyboard)</option>
               <option value="Laptop (external keyboard)">Laptop (external keyboard)</option>
               <option value="Desktop keyboard">Desktop keyboard</option>
+              <option value="Mobile (iOS)">Mobile (iOS)</option>
+              <option value="Mobile (Android)">Mobile (Android)</option>
+              <option value="Mobile (Others)">Mobile (Others)</option>
             </select>
             {errors.deviceType && (
               <p className="text-red-600 text-sm mt-1">{errors.deviceType}</p>
