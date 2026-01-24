@@ -4,6 +4,8 @@ import { KeystrokeAnalytics } from '../hooks/useKeystrokeLogger';
 import { saveKeystrokesNoAuth } from '../services/saveKeystrokes';
 import { StressWorkloadForm, StressWorkloadData } from './StressWorkloadForm';
 import { saveStressWorkload } from '../services/saveStressWorkload';
+import { saveLeaderboardEntry } from '../services/saveLeaderboard';
+import { Leaderboard } from './Leaderboard';
 
 interface KeystrokeDataDisplayProps {
   events: KeystrokeEvent[];
@@ -27,6 +29,7 @@ export function KeystrokeDataDisplay({
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showStressForm, setShowStressForm] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   async function handleSaveToSupabase() {
     if (events.length === 0) {
@@ -71,8 +74,51 @@ export function KeystrokeDataDisplay({
       await saveStressWorkload(sessionId || '', testType, stressData);
       console.log(`✅ Successfully saved stress/workload data!`);
 
+      // Save leaderboard entry for timed and multitasking tests
+      if ((testType === 'timed' || testType === 'multitasking') && formData) {
+        try {
+          const userName = formData.formSnapshot?.fullName || formData.fullName || 'Anonymous';
+          
+          if (testType === 'timed') {
+            const timeTaken = formData.timeElapsed || 0; // Time in seconds
+            await saveLeaderboardEntry({
+              userName,
+              testType: 'timed',
+              timeTaken,
+              sessionId: sessionId || '',
+            });
+            console.log(`✅ Saved leaderboard entry for timed test: ${timeTaken}s`);
+          } else if (testType === 'multitasking') {
+            const score = formData.score || 0;
+            await saveLeaderboardEntry({
+              userName,
+              testType: 'multitasking',
+              score,
+              sessionId: sessionId || '',
+            });
+            console.log(`✅ Saved leaderboard entry for multitasking test: ${score} points`);
+          }
+        } catch (leaderboardError) {
+          console.error('Error saving leaderboard entry:', leaderboardError);
+          // Don't fail the whole save if leaderboard fails
+        }
+      }
+
       setSaveStatus('success');
-      alert(`✅ Saved ${keystrokeRes.count} keystrokes and stress/workload data to Supabase`);
+      
+      // Show leaderboard for timed and multitasking tests
+      if (testType === 'timed' || testType === 'multitasking') {
+        setShowLeaderboard(true);
+        // Scroll to leaderboard
+        setTimeout(() => {
+          const leaderboardElement = document.querySelector('[data-leaderboard]');
+          if (leaderboardElement) {
+            leaderboardElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      } else {
+        alert(`✅ Saved ${keystrokeRes.count} keystrokes and stress/workload data to Supabase`);
+      }
       
       // Reset success status after 3 seconds
       setTimeout(() => setSaveStatus('idle'), 3000);
@@ -86,6 +132,11 @@ export function KeystrokeDataDisplay({
   }
 
 
+  // Extract user data for leaderboard
+  const userName = formData?.formSnapshot?.fullName || formData?.fullName;
+  const currentScore = formData?.score;
+  const currentTime = formData?.timeElapsed;
+
   return (
     <>
       {/* Stress/Workload Form Modal */}
@@ -94,6 +145,29 @@ export function KeystrokeDataDisplay({
           onSubmit={handleStressFormSubmit}
           onCancel={() => setShowStressForm(false)}
         />
+      )}
+
+      {/* Leaderboard - shown after successful save for timed/multitasking tests */}
+      {showLeaderboard && (testType === 'timed' || testType === 'multitasking') && (
+        <div data-leaderboard>
+          <div className="mb-4 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-green-800 font-medium">
+                ✅ Successfully saved! Check out the leaderboard below to see how you rank!
+              </p>
+            </div>
+          </div>
+          <Leaderboard
+            testType={testType as 'timed' | 'multitasking'}
+            currentUserName={userName}
+            currentScore={currentScore}
+            currentTime={currentTime}
+            sessionId={sessionId}
+          />
+        </div>
       )}
 
       <div className="mt-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
