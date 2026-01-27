@@ -55,38 +55,10 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   const [answerError, setAnswerError] = useState<string | null>(null);
   const [challengeResults, setChallengeResults] = useState<ChallengeResult[]>([]);
   const [challengeStartTime, setChallengeStartTime] = useState<number | null>(null);
-  const [testCompleted, setTestCompleted] = useState(false);
 
   const challengeTimerRef = useRef<number | null>(null);
   const nextChallengeTimerRef = useRef<number | null>(null);
   const challengesShownRef = useRef(0);
-
-  // Listen for save button click via custom event to stop challenges
-  useEffect(() => {
-    const handleSaveClick = () => {
-      setTestCompleted(true);
-      // Clear any pending challenge timers
-      if (nextChallengeTimerRef.current) {
-        clearTimeout(nextChallengeTimerRef.current);
-        nextChallengeTimerRef.current = null;
-      }
-      // Clear challenge countdown timer
-      if (challengeTimerRef.current) {
-        clearTimeout(challengeTimerRef.current);
-        challengeTimerRef.current = null;
-      }
-      // Dismiss current challenge
-      setCurrentChallenge(null);
-      setActiveChallenge(null);
-      setIsFormDisabled(false);
-    };
-    
-    window.addEventListener('multitasking-test-save-clicked', handleSaveClick);
-    
-    return () => {
-      window.removeEventListener('multitasking-test-save-clicked', handleSaveClick);
-    };
-  }, []);
 
   const {
     logKeyDown, logKeyUp,
@@ -98,20 +70,13 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   const totalFields = Object.keys(formData).length;
   const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
-  const isFormComplete = completionPercentage === 100;
 
   // Calculate challenge statistics
   const correctChallenges = challengeResults.filter(r => r.isCorrect).length;
-  const incorrectChallenges = challengeResults.filter(r => !r.isCorrect).length;
   const timedOutChallenges = challengeResults.filter(r => r.timedOut).length;
   const avgResponseTime = challengeResults.length > 0
     ? Math.round(challengeResults.reduce((sum, r) => sum + r.timeToAnswer, 0) / challengeResults.length)
     : 0;
-
-  // Calculate score: 100 points for completing form, -5 for each wrong challenge
-  const baseScore = isFormComplete ? 100 : 0;
-  const penalty = incorrectChallenges * 5;
-  const score = Math.max(0, baseScore - penalty);
 
   // Update parent with current data
   useEffect(() => {
@@ -128,10 +93,9 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         averageResponseTime: avgResponseTime,
         challengeResults: challengeResults,
         formSnapshot: formData,
-        score: score, // Add score to formData
       }
     });
-  }, [formData, completedChallenges, challengeResults, completionPercentage, score]);
+  }, [formData, completedChallenges, challengeResults, completionPercentage]);
 
   // Generate challenges
   const generateChallenge = (): Challenge => {
@@ -180,14 +144,10 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   // Schedule next challenge
   const scheduleNextChallenge = () => {
-    // Don't schedule if test is completed or max challenges reached
-    if (testCompleted || challengesShownRef.current >= PACE.maxChallenges) return;
+    if (challengesShownRef.current >= PACE.maxChallenges) return;
 
     const delay = PACE.minDelayMs + Math.random() * (PACE.maxDelayMs - PACE.minDelayMs);
     nextChallengeTimerRef.current = window.setTimeout(() => {
-      // Double-check test isn't completed before showing challenge
-      if (testCompleted) return;
-      
       const challenge = generateChallenge();
       setCurrentChallenge(challenge);
       setActiveChallenge(challenge.id);
@@ -201,33 +161,22 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   // Challenge timer countdown
   useEffect(() => {
-    // Don't run timer if test is completed
-    if (testCompleted) {
-      if (challengeTimerRef.current) {
-        clearTimeout(challengeTimerRef.current);
-        challengeTimerRef.current = null;
-      }
-      return;
-    }
-
     if (currentChallenge && challengeTimer > 0) {
       challengeTimerRef.current = window.setTimeout(() => {
-        if (!testCompleted) {
-          setChallengeTimer(prev => prev - 1);
-        }
+        setChallengeTimer(prev => prev - 1);
       }, 1000);
-    } else if (currentChallenge && challengeTimer === 0 && !testCompleted) {
+    } else if (currentChallenge && challengeTimer === 0) {
       handleChallengeTimeout();
     }
 
     return () => {
       if (challengeTimerRef.current) clearTimeout(challengeTimerRef.current);
     };
-  }, [currentChallenge, challengeTimer, testCompleted]);
+  }, [currentChallenge, challengeTimer]);
 
   const handleChallengeTimeout = () => {
     if (currentChallenge && challengeStartTime) {
-      // Record timeout result (counts as incorrect, -10 points)
+      // Record timeout result
       const result: ChallengeResult = {
         challengeId: currentChallenge.id,
         type: currentChallenge.type,
@@ -241,7 +190,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
       setChallengeResults(prev => [...prev, result]);
     }
 
-    setAnswerError('⏰ Time expired! -5 points');
+    setAnswerError('⏰ Time expired! Moving on...');
     setTimeout(() => {
       setCurrentChallenge(null);
       setActiveChallenge(null);
@@ -259,19 +208,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     const isCorrect = normalize(userAnswer) === normalize(currentChallenge.correctAnswer);
     
     if (!isCorrect) {
-      // Record incorrect answer immediately (-5 points)
-      const incorrectResult: ChallengeResult = {
-        challengeId: currentChallenge.id,
-        type: currentChallenge.type,
-        question: currentChallenge.question,
-        userAnswer: userAnswer,
-        correctAnswer: currentChallenge.correctAnswer,
-        isCorrect: false,
-        timeToAnswer: Date.now() - challengeStartTime,
-        timedOut: false,
-      };
-      setChallengeResults(prev => [...prev, incorrectResult]);
-      setAnswerError('❌ Incorrect! -5 points. Try again.');
+      setAnswerError('❌ Incorrect! Try again.');
       return;
     }
 
@@ -325,30 +262,6 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   return (
     <div className="relative">
-      {/* Score Display - Prominent */}
-      <div className="mb-6 p-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg border-4 border-indigo-300 shadow-xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-white text-sm font-medium mb-1">Your Score</div>
-            <div className="text-white text-5xl font-bold">{score}</div>
-            <div className="text-indigo-100 text-xs mt-1">
-              {isFormComplete ? '✓ Form Complete (+100)' : `Complete form to earn 100 points`}
-              {incorrectChallenges > 0 && (
-                <span className="ml-2">• {incorrectChallenges} wrong challenge{incorrectChallenges !== 1 ? 's' : ''} (-{incorrectChallenges * 5})</span>
-              )}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-white text-2xl font-bold mb-1">
-              {score >= 90 ? '🏆' : score >= 70 ? '⭐' : score >= 50 ? '👍' : '💪'}
-            </div>
-            <div className="text-indigo-100 text-xs">
-              {score >= 90 ? 'Excellent!' : score >= 70 ? 'Great!' : score >= 50 ? 'Good!' : 'Keep going!'}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Instructions */}
       <div className="mb-6 p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
         <h3 className="font-semibold text-gray-800 mb-2">🧠 Multitasking Challenge</h3>
@@ -421,7 +334,11 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
                     <button
                       key={option}
                       onClick={() => handleOptionClick(option)}
-                      className="p-3 bg-indigo-100 hover:bg-indigo-200 rounded-lg font-semibold text-gray-800 transition-colors"
+                      className={`p-3 rounded-lg font-semibold text-gray-800 transition-colors ${
+                        userAnswer === option
+                          ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
+                          : 'bg-indigo-100 hover:bg-indigo-200'
+                      }`}
                     >
                       {option}
                     </button>
