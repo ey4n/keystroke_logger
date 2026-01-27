@@ -7,6 +7,7 @@ import { TimedTest } from '../components/tests/TimedTest';
 import { MultitaskingTest } from '../components/tests/MultitaskingTest';
 import { LyingTest } from '../components/tests/LyingTest'; 
 import { KeystrokeDataDisplay } from '../components/KeystrokeDataDisplay';
+import { ColourTest } from '../components/tests/Colour';
 import { TestType } from '../types/keystroke';
 
 interface ConsentData {
@@ -141,6 +142,13 @@ export default function TestContainer({ consentData }: TestContainerProps = {}) 
           
           {currentTest === 'multitasking' && (
             <MultitaskingTest
+              sessionId={sessionId}
+              onTestDataUpdate={handleTestDataUpdate}
+            />
+          )}
+
+          {currentTest === 'colour' && (
+            <ColourTest
               sessionId={sessionId}
               onTestDataUpdate={handleTestDataUpdate}
             />

@@ -26,10 +26,10 @@ const AVAILABLE_TESTS: TestConfig[] = [
     enabled: true,
   },
   {
-    id: 'noise',
-    name: 'Environmental Stimulations Test',
-    description: 'Complete form fields with environmental stimulation in the background',
-    enabled: false,
+    id: 'colour',
+    name: 'Colour Stimulation Test',
+    description: 'Complete form fields with colour changes in the background',
+    enabled: true,
   },
 ];
 
@@ -42,8 +42,8 @@ export function TestSelector({ currentTest, onTestChange }: TestSelectorProps) {
         return '⏱️';
       case 'multitasking':
         return '🧠';
-      case 'noise':
-        return '🔊';
+      case 'colour':
+        return '🔴';
       default:
         return '📝';
     }

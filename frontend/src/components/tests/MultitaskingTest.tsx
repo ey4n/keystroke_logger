@@ -264,7 +264,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     <div className="relative">
       {/* Instructions */}
       <div className="mb-6 p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
-        <h3 className="font-semibold text-gray-800 mb-2">🧠 Multitasking Challenge</h3>
+        <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
         <p className="text-sm text-gray-700 mb-2">
           Fill out the form while handling interruptions! Random challenges will appear that you must solve quickly.
         </p>
