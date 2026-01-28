@@ -16,7 +16,7 @@ interface TimedTestProps {
 
 export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [timeLeft, setTimeLeft] = useState(200);
+  const [timeLeft, setTimeLeft] = useState(300);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerExpired, setTimerExpired] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
@@ -34,7 +34,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const timerRef = useRef<number | null>(null);
 
   // Calculate elapsed time
-  const elapsedTime = startTime ? 200 - timeLeft : 0;
+  const elapsedTime = startTime ? 300 - timeLeft : 0;
 
   // Calculate completion percentage
   const totalFields = Object.keys(formData).length;
@@ -57,7 +57,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       getLogs,
       getAnalytics,
         formData: {
-          timeLimit: 200,
+          timeLimit: 300,
           timeElapsed: elapsedTime,
           timeRemaining: timeLeft,
           timerExpired,
@@ -159,7 +159,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
             <p className="text-sm text-gray-600">
               {timerExpired ? 'You ran out of time!' : 
                isTimerActive ? 'Fill out as much as you can!' : 
-               'Start typing to begin the 200-second challenge'}
+               'Start typing to begin the 5-minute challenge'}
             </p>
           </div>
           <div className="text-right">
@@ -182,7 +182,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       <div className="mb-6 p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
         <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
         <p className="text-sm text-gray-700 mb-3">
-          You have <strong>200 seconds</strong> to fill out as many fields as possible. 
+          You have <strong>5 minutes (300 seconds)</strong> to fill out as many fields as possible. 
           The timer starts as soon as you begin typing. Answer quickly but naturally!
         </p>
         <div className="bg-white p-3 rounded border border-indigo-200">

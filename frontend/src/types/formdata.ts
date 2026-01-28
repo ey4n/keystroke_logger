@@ -11,7 +11,6 @@ export interface FormData {
   stressfulSituation: string;
   idealHoliday: string;
   fiveYearsFromNow: string;
-  dayPlanning: string;
   taskTracking: string;
   unexpectedChanges: string;
   recentLearning: string;
@@ -32,7 +31,6 @@ export const initialFormData: FormData = {
   stressfulSituation: '',
   idealHoliday: '',
   fiveYearsFromNow: '',
-  dayPlanning: '',
   taskTracking: '',
   unexpectedChanges: '',
   recentLearning: '',

@@ -149,16 +149,6 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
           disabled={disabled}
         />
         <LongTextArea
-          label="Describe how you usually plan your day when you wake up."
-          value={formData.dayPlanning}
-          onChange={onInputChange('dayPlanning')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('dayPlanning')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
           label="Explain how you usually keep track of tasks, reminders, or deadlines."
           value={formData.taskTracking}
           onChange={onInputChange('taskTracking')}

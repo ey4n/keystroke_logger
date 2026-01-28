@@ -22,7 +22,6 @@ interface FormData {
   stressfulSituation: string;
   idealHoliday: string;
   fiveYearsFromNow: string;
-  dayPlanning: string;
   taskTracking: string;
   unexpectedChanges: string;
   recentLearning: string;
@@ -201,7 +200,6 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
     stressfulSituation: '',
     idealHoliday: '',
     fiveYearsFromNow: '',
-    dayPlanning: '',
     taskTracking: '',
     unexpectedChanges: '',
     recentLearning: '',
@@ -241,7 +239,6 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
       stressfulSituation: '',
       idealHoliday: '',
       fiveYearsFromNow: '',
-      dayPlanning: '',
       taskTracking: '',
       unexpectedChanges: '',
       recentLearning: '',
@@ -314,7 +311,6 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
           {renderLongText("Describe a recent situation where you felt stressed, pressured, or overwhelmed.", "stressfulSituation")}
           {renderLongText("What would be your ideal holiday?", "idealHoliday")}
           {renderLongText("Where do you see yourself 5 years from now?", "fiveYearsFromNow")}
-          {renderLongText("Describe how you usually plan your day when you wake up.", "dayPlanning")}
           {renderLongText("Explain how you usually keep track of tasks, reminders, or deadlines.", "taskTracking")}
           {renderLongText("Describe how you typically respond when your plans change unexpectedly.", "unexpectedChanges")}
           {renderLongText("Describe something you learned recently that you found useful.", "recentLearning")}
