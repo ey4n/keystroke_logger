@@ -19,9 +19,10 @@ interface ConsentData {
 
 interface TestContainerProps {
   consentData?: ConsentData | null;
+  sessionId?: string;
 }
 
-export default function TestContainer({ consentData }: TestContainerProps = {}) {
+export default function TestContainer({ consentData, sessionId: propSessionId }: TestContainerProps = {}) {
   const [currentTest, setCurrentTest] = useState<TestType>('free');
   const [showData, setShowData] = useState(true);
   const [sessionId, setSessionId] = useState<string>('');
@@ -37,12 +38,23 @@ export default function TestContainer({ consentData }: TestContainerProps = {}) 
     formData?: any;
   } | null>(null);
 
-  // Generate session ID once when container mounts
+  // Use provided sessionId or generate one
   useEffect(() => {
-    const id = globalThis.crypto?.randomUUID?.() ?? `sess_${Date.now()}`;
-    setSessionId(id);
-    console.log('Session started:', id);
-  }, []);
+    if (propSessionId) {
+      setSessionId(propSessionId);
+      sessionStorage.setItem('session_id', propSessionId);
+    } else {
+      const stored = sessionStorage.getItem('session_id');
+      if (stored) {
+        setSessionId(stored);
+      } else {
+        const id = globalThis.crypto?.randomUUID?.() ?? `sess_${Date.now()}`;
+        setSessionId(id);
+        sessionStorage.setItem('session_id', id);
+      }
+    }
+    console.log('Session started:', sessionId || propSessionId);
+  }, [propSessionId]);
 
   // Generate new session when requested - clears consent and reloads page
   const regenerateSession = () => {
