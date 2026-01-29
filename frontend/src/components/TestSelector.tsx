@@ -24,13 +24,7 @@ const AVAILABLE_TESTS: TestConfig[] = [
     name: 'Multitasking Test',
     description: 'Type while performing other tasks',
     enabled: true,
-  },
-  {
-    id: 'noise',
-    name: 'Environmental Stimulations Test',
-    description: 'Complete form fields with environmental stimulation in the background',
-    enabled: false,
-  },
+  }
 ];
 
 export function TestSelector({ currentTest, onTestChange }: TestSelectorProps) {
@@ -42,8 +36,8 @@ export function TestSelector({ currentTest, onTestChange }: TestSelectorProps) {
         return '⏱️';
       case 'multitasking':
         return '🧠';
-      case 'noise':
-        return '🔊';
+      case 'colour':
+        return '🔴';
       default:
         return '📝';
     }
