@@ -24,13 +24,7 @@ const AVAILABLE_TESTS: TestConfig[] = [
     name: 'Multitasking Test',
     description: 'Type while performing other tasks',
     enabled: true,
-  },
-  {
-    id: 'colour',
-    name: 'Colour Stimulation Test',
-    description: 'Complete form fields with colour changes in the background',
-    enabled: true,
-  },
+  }
 ];
 
 export function TestSelector({ currentTest, onTestChange }: TestSelectorProps) {
