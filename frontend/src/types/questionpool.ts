@@ -22,7 +22,7 @@ export const QUESTION_POOLS = {
     { id: 'email', label: 'Email Address', type: 'short', category: 'personal' },
     { id: 'age', label: 'Age', type: 'short', category: 'personal' },
     { id: 'occupation', label: 'Occupation', type: 'short', category: 'personal' },
-    { id: 'location', label: 'City/Country', type: 'short', category: 'personal' },
+    { id: 'location', label: 'Country', type: 'short', category: 'personal' },
     { id: 'education', label: 'Highest Education Level', type: 'short', category: 'personal' },
   ] as Question[],
 
