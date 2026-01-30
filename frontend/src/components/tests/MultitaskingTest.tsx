@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
-import { FormData, initialFormData } from '../../types/formdata';
+import { FormData, createInitialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
+import { generateQuestionSet, QuestionSet } from '../../types/questionpool';
 
 interface MultitaskingTestProps {
   sessionId: string;
@@ -45,7 +46,25 @@ const PACE = {
 const normalize = (s: string) => s.trim().toLowerCase();
 
 export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTestProps) {
-  const [formData, setFormData] = useState<FormData>(initialFormData);
+  // Generate random question set once when component mounts
+  const questionSet: QuestionSet = useMemo(() => {
+    return generateQuestionSet(3, 4, 4); // 4 short, 4 direct long, 4 indirect long
+  }, []);
+
+  // Get all question IDs for form initialization
+  const allQuestionIds = useMemo(() => {
+    return [
+      ...questionSet.requiredShort.map(q => q.id),
+      ...questionSet.short.map(q => q.id),
+      ...questionSet.directLong.map(q => q.id),
+      ...questionSet.indirectLong.map(q => q.id),
+      ...questionSet.transcription.map(q => q.id),
+    ];
+  }, [questionSet]);
+
+  const [formData, setFormData] = useState<FormData>(() => 
+    createInitialFormData(allQuestionIds)
+  );
   const [hasStarted, setHasStarted] = useState(false);
   const [currentChallenge, setCurrentChallenge] = useState<Challenge | null>(null);
   const [userAnswer, setUserAnswer] = useState('');
@@ -67,8 +86,8 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   } = useKeystrokeLogger();
 
   // Calculate completion percentage
-  const totalFields = Object.keys(formData).length;
-  const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
+  const totalFields = allQuestionIds.length;
+  const filledFields = allQuestionIds.filter(id => formData[id]?.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
 
   // Calculate challenge statistics
@@ -93,6 +112,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         averageResponseTime: avgResponseTime,
         challengeResults: challengeResults,
         formSnapshot: formData,
+        questionSet: questionSet, // Include which questions were shown
       }
     });
   }, [formData, completedChallenges, challengeResults, completionPercentage]);
@@ -253,7 +273,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   };
 
   const handleFieldFocus = (fieldName: keyof FormData) => {
-    if (setFieldName) setFieldName(fieldName);
+    if (setFieldName) setFieldName(String(fieldName));
   };
 
   const handleFieldBlur = () => {
@@ -363,6 +383,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
       {/* Form */}
       <DataCollectionForm
         formData={formData}
+        questions={questionSet}
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}

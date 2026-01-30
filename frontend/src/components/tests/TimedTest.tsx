@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
-import { FormData, initialFormData } from '../../types/formdata';
+import { FormData, createInitialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
+import { generateQuestionSet, QuestionSet } from '../../types/questionpool';
 
 interface TimedTestProps {
   sessionId: string;
@@ -15,7 +16,25 @@ interface TimedTestProps {
 }
 
 export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
-  const [formData, setFormData] = useState<FormData>(initialFormData);
+  // Generate random question set once when component mounts
+  const questionSet: QuestionSet = useMemo(() => {
+    return generateQuestionSet(3, 4, 4); // 4 short, 4 direct long, 4 indirect long
+  }, []);
+
+  // Get all question IDs for form initialization
+  const allQuestionIds = useMemo(() => {
+    return [
+      ...questionSet.requiredShort.map(q => q.id),
+      ...questionSet.short.map(q => q.id),
+      ...questionSet.directLong.map(q => q.id),
+      ...questionSet.indirectLong.map(q => q.id),
+      ...questionSet.transcription.map(q => q.id),
+    ];
+  }, [questionSet]);
+
+  const [formData, setFormData] = useState<FormData>(() => 
+    createInitialFormData(allQuestionIds)
+  );
   const [timeLeft, setTimeLeft] = useState(300);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerExpired, setTimerExpired] = useState(false);
@@ -37,8 +56,8 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const elapsedTime = startTime ? 300 - timeLeft : 0;
 
   // Calculate completion percentage
-  const totalFields = Object.keys(formData).length;
-  const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
+  const totalFields = allQuestionIds.length;
+  const filledFields = allQuestionIds.filter(id => formData[id]?.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
 
   // Calculate points: max points for completing all, -5 for each incomplete question
@@ -47,27 +66,28 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const score = Math.max(0, maxPoints - (incompleteFields * 5));
 
   const handleFieldFocus = (fieldName: keyof FormData) => {
-      console.log('question:', fieldName);
-      setFieldName(fieldName);  // ← Finally calls setFieldName!
-    };
+    console.log('question:', fieldName);
+    setFieldName(String(fieldName));
+  };
 
   // Update parent with current data
   useEffect(() => {
     onTestDataUpdate({
       getLogs,
       getAnalytics,
-        formData: {
-          timeLimit: 300,
-          timeElapsed: elapsedTime,
-          timeRemaining: timeLeft,
-          timerExpired,
-          completionPercentage,
-          filledFields,
-          totalFields,
-          score,
-          maxPoints,
-          formSnapshot: formData,
-        }
+      formData: {
+        timeLimit: 300,
+        timeElapsed: elapsedTime,
+        timeRemaining: timeLeft,
+        timerExpired,
+        completionPercentage,
+        filledFields,
+        totalFields,
+        score,
+        maxPoints,
+        formSnapshot: formData,
+        questionSet: questionSet, // Include which questions were shown
+      }
     });
   }, [formData, timeLeft, timerExpired, elapsedTime, completionPercentage]);
 
@@ -125,7 +145,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
           </div>
           <div className="text-right">
             <div className="text-white text-2xl font-bold mb-1">
-              {score >= maxPoints * 0.9 ? '🏆' : score >= maxPoints * 0.7 ? '⭐' : score >= maxPoints * 0.5 ? '👍' : '💪'}
+              {score >= maxPoints * 0.9 ? '🏆' : score >= maxPoints * 0.7 ? '⭐' : score >= maxPoints * 0.5 ? '💪' : '📈'}
             </div>
             <div className="text-indigo-100 text-xs">
               {score >= maxPoints * 0.9 ? 'Perfect!' : score >= maxPoints * 0.7 ? 'Great!' : score >= maxPoints * 0.5 ? 'Good!' : 'Keep going!'}
@@ -198,6 +218,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       {/* Form */}
       <DataCollectionForm
         formData={formData}
+        questions={questionSet}
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}
