@@ -1,24 +1,18 @@
+// Dynamic form data type that can accommodate any question from the pools
+export type FormData = {
+  [key: string]: string;
+};
 
-export interface FormData {
-  fullName: string;
-  email: string;
-  age: string;
-  occupation: string;
-  morningRoutine: string;
-  favoriteMemory: string;
-  weekendActivity: string;
-  calmExperience: string;
-  stressfulSituation: string;
-  idealHoliday: string;
-  fiveYearsFromNow: string;
-  taskTracking: string;
-  unexpectedChanges: string;
-  recentLearning: string;
-  decisionMaking: string;
-  explainingTasks: string;
-  transcription: string;
+// Helper to create initial form data from a question set
+export function createInitialFormData(questionIds: string[]): FormData {
+  const formData: FormData = {};
+  questionIds.forEach(id => {
+    formData[id] = '';
+  });
+  return formData;
 }
 
+// Original initialFormData for backward compatibility
 export const initialFormData: FormData = {
   fullName: '',
   email: '',
