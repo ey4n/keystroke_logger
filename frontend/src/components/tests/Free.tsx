@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { FormData, initialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
+import { getQuestionsForTest } from '../../data/questionBanks';
 
 interface FreeTypingTestProps {
   sessionId: string;
@@ -41,6 +42,8 @@ export function Free({ sessionId, onTestDataUpdate }: FreeTypingTestProps) {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
   };
 
+  const categoryQuestions = useMemo(() => getQuestionsForTest(sessionId, 'free'), [sessionId]);
+
   const totalFields = Object.keys(formData).length;
   const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
@@ -66,10 +69,11 @@ export function Free({ sessionId, onTestDataUpdate }: FreeTypingTestProps) {
       {/* Form */}
       <DataCollectionForm
         formData={formData}
+        categoryQuestions={categoryQuestions}
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}
-        onFieldFocus={handleFieldFocus} 
+        onFieldFocus={handleFieldFocus}
         className="max-h-[500px] overflow-y-auto pr-2 mb-6"
       />
     </div>

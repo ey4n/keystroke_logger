@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { FormData, initialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
+import { getQuestionsForTest } from '../../data/questionBanks';
 
 interface TimedTestProps {
   sessionId: string;
@@ -46,9 +47,10 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const incompleteFields = totalFields - filledFields;
   const score = Math.max(0, maxPoints - (incompleteFields * 5));
 
+  const categoryQuestions = useMemo(() => getQuestionsForTest(sessionId, 'timed'), [sessionId]);
+
   const handleFieldFocus = (fieldName: keyof FormData) => {
-      console.log('question:', fieldName);
-      setFieldName(fieldName);  // ← Finally calls setFieldName!
+      setFieldName(fieldName);
     };
 
   // Update parent with current data
@@ -198,11 +200,12 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       {/* Form */}
       <DataCollectionForm
         formData={formData}
+        categoryQuestions={categoryQuestions}
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}
         disabled={timerExpired}
-        onFieldFocus={handleFieldFocus} 
+        onFieldFocus={handleFieldFocus}
         className="max-h-[500px] overflow-y-auto pr-2 mb-6"
       />
     </div>

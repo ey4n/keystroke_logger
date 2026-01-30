@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { FormData, initialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
+import { getQuestionsForTest } from '../../data/questionBanks';
 
 interface MultitaskingTestProps {
   sessionId: string;
@@ -260,6 +261,8 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     if (setFieldName) setFieldName(undefined);
   };
 
+  const categoryQuestions = useMemo(() => getQuestionsForTest(sessionId, 'multitasking'), [sessionId]);
+
   return (
     <div className="relative">
       {/* Instructions */}
@@ -363,6 +366,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
       {/* Form */}
       <DataCollectionForm
         formData={formData}
+        categoryQuestions={categoryQuestions}
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}

@@ -1,10 +1,11 @@
-
 import React from 'react';
 import { FormData } from '../../types/formdata';
 import { FormSection, ShortInputField, LongTextArea } from './FormFields'
 
 export interface DataCollectionFormProps {
   formData: FormData;
+  /** One question per category (7 questions). If not provided, uses placeholder labels. */
+  categoryQuestions?: string[];
   onInputChange: (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onKeyUp: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
@@ -14,8 +15,11 @@ export interface DataCollectionFormProps {
   className?: string;
 }
 
+const CATEGORY_KEYS: (keyof FormData)[] = ['category1', 'category2', 'category3', 'category4', 'category5', 'category6', 'category7'];
+
 export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
   formData,
+  categoryQuestions = [],
   onInputChange,
   onKeyDown,
   onKeyUp,
@@ -31,6 +35,16 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
   const handleBlur = () => {
     if (onFieldBlur) onFieldBlur();
   };
+
+  const questions = categoryQuestions.length >= 7 ? categoryQuestions : [
+    'Describe your typical morning routine.',
+    'Describe a recent experience that you found calm or relaxing.',
+    'Describe a recent situation where you felt stressed or overwhelmed.',
+    'Explain how you usually keep track of tasks and deadlines.',
+    'Describe how you respond when your plans change unexpectedly.',
+    'Explain how you usually make decisions when choosing between options.',
+    'Describe how you would explain a simple task to someone unfamiliar with it.',
+  ];
 
   return (
     <div className={className}>
@@ -78,126 +92,19 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
       </FormSection>
 
       <FormSection title="Tell Us About Yourself">
-        <LongTextArea
-          label="Describe your typical morning routine"
-          value={formData.morningRoutine}
-          onChange={onInputChange('morningRoutine')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('morningRoutine')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="What's your favorite memory from the past year?"
-          value={formData.favoriteMemory}
-          onChange={onInputChange('favoriteMemory')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('favoriteMemory')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="How do you typically spend your weekends?"
-          value={formData.weekendActivity}
-          onChange={onInputChange('weekendActivity')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('weekendActivity')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="Describe a recent experience that you found calm or relaxing."
-          value={formData.calmExperience}
-          onChange={onInputChange('calmExperience')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('calmExperience')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="Describe a recent situation where you felt stressed, pressured, or overwhelmed."
-          value={formData.stressfulSituation}
-          onChange={onInputChange('stressfulSituation')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('stressfulSituation')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="What would be your ideal holiday?"
-          value={formData.idealHoliday}
-          onChange={onInputChange('idealHoliday')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('idealHoliday')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="Where do you see yourself 5 years from now?"
-          value={formData.fiveYearsFromNow}
-          onChange={onInputChange('fiveYearsFromNow')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('fiveYearsFromNow')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="Explain how you usually keep track of tasks, reminders, or deadlines."
-          value={formData.taskTracking}
-          onChange={onInputChange('taskTracking')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('taskTracking')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="Describe how you typically respond when your plans change unexpectedly."
-          value={formData.unexpectedChanges}
-          onChange={onInputChange('unexpectedChanges')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('unexpectedChanges')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="Describe something you learned recently that you found useful."
-          value={formData.recentLearning}
-          onChange={onInputChange('recentLearning')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('recentLearning')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="Explain how you usually make decisions when choosing between options."
-          value={formData.decisionMaking}
-          onChange={onInputChange('decisionMaking')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('decisionMaking')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
-        <LongTextArea
-          label="Describe how you would explain a simple task or process to someone unfamiliar with it."
-          value={formData.explainingTasks}
-          onChange={onInputChange('explainingTasks')}
-          onKeyDown={onKeyDown as any}
-          onKeyUp={onKeyUp as any}
-          onFocus={handleFocus('explainingTasks')}
-          onBlur={handleBlur}
-          disabled={disabled}
-        />
+        {CATEGORY_KEYS.map((fieldKey, index) => (
+          <LongTextArea
+            key={fieldKey}
+            label={questions[index] ?? `Question ${index + 1}`}
+            value={formData[fieldKey]}
+            onChange={onInputChange(fieldKey)}
+            onKeyDown={onKeyDown as any}
+            onKeyUp={onKeyUp as any}
+            onFocus={handleFocus(fieldKey)}
+            onBlur={handleBlur}
+            disabled={disabled}
+          />
+        ))}
       </FormSection>
 
       {/* Transcription Task Section */}

@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { KeystrokeDataDisplay } from '../KeystrokeDataDisplay';
+import { getQuestionsForTest } from '../../data/questionBanks';
 
 interface LyingTestProps {
   sessionId: string;
@@ -15,20 +16,17 @@ interface FormData {
   email: string;
   age: string;
   occupation: string;
-  morningRoutine: string;
-  favoriteMemory: string;
-  weekendActivity: string;
-  calmExperience: string;
-  stressfulSituation: string;
-  idealHoliday: string;
-  fiveYearsFromNow: string;
-  taskTracking: string;
-  unexpectedChanges: string;
-  recentLearning: string;
-  decisionMaking: string;
-  explainingTasks: string;
+  category1: string;
+  category2: string;
+  category3: string;
+  category4: string;
+  category5: string;
+  category6: string;
+  category7: string;
   transcription: string;
 }
+
+const CATEGORY_KEYS: (keyof FormData)[] = ['category1', 'category2', 'category3', 'category4', 'category5', 'category6', 'category7'];
 
 type FieldMode = 'truth' | 'lie';
 
@@ -187,26 +185,32 @@ const LongTextArea = ({
   );
 };
 
-export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps) {
+export function LyingTest({ sessionId, onShowData, onClearData, showData }: LyingTestProps) {
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
     age: '',
     occupation: '',
-    morningRoutine: '',
-    favoriteMemory: '',
-    weekendActivity: '',
-    calmExperience: '',
-    stressfulSituation: '',
-    idealHoliday: '',
-    fiveYearsFromNow: '',
-    taskTracking: '',
-    unexpectedChanges: '',
-    recentLearning: '',
-    decisionMaking: '',
-    explainingTasks: '',
+    category1: '',
+    category2: '',
+    category3: '',
+    category4: '',
+    category5: '',
+    category6: '',
+    category7: '',
     transcription: '',
   });
+
+  const categoryQuestions = useMemo(() => getQuestionsForTest(sessionId, 'lying'), [sessionId]);
+  const questions = categoryQuestions.length >= 7 ? categoryQuestions : [
+    'Describe your typical morning routine.',
+    'Describe a recent experience that you found calm or relaxing.',
+    'Describe a recent situation where you felt stressed or overwhelmed.',
+    'Explain how you usually keep track of tasks and deadlines.',
+    'Describe how you respond when your plans change unexpectedly.',
+    'Explain how you usually make decisions when choosing between options.',
+    'Describe how you would explain a simple task to someone unfamiliar with it.',
+  ];
 
   // Randomly assign truth/lie to each field (memoized so it doesn't change on re-render)
   const fieldModes = useMemo(() => {
@@ -232,18 +236,13 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
       email: '',
       age: '',
       occupation: '',
-      morningRoutine: '',
-      favoriteMemory: '',
-      weekendActivity: '',
-      calmExperience: '',
-      stressfulSituation: '',
-      idealHoliday: '',
-      fiveYearsFromNow: '',
-      taskTracking: '',
-      unexpectedChanges: '',
-      recentLearning: '',
-      decisionMaking: '',
-      explainingTasks: '',
+      category1: '',
+      category2: '',
+      category3: '',
+      category4: '',
+      category5: '',
+      category6: '',
+      category7: '',
       transcription: '',
     });
     clearLogs();
@@ -304,18 +303,9 @@ export function LyingTest({ onShowData, onClearData, showData }: LyingTestProps)
         </FormSection>
 
         <FormSection title="Tell Us About Yourself">
-          {renderLongText("Describe your typical morning routine", "morningRoutine")}
-          {renderLongText("What's your favorite memory from the past year?", "favoriteMemory")}
-          {renderLongText("How do you typically spend your weekends?", "weekendActivity")}
-          {renderLongText("Describe a recent experience that you found calm or relaxing.", "calmExperience")}
-          {renderLongText("Describe a recent situation where you felt stressed, pressured, or overwhelmed.", "stressfulSituation")}
-          {renderLongText("What would be your ideal holiday?", "idealHoliday")}
-          {renderLongText("Where do you see yourself 5 years from now?", "fiveYearsFromNow")}
-          {renderLongText("Explain how you usually keep track of tasks, reminders, or deadlines.", "taskTracking")}
-          {renderLongText("Describe how you typically respond when your plans change unexpectedly.", "unexpectedChanges")}
-          {renderLongText("Describe something you learned recently that you found useful.", "recentLearning")}
-          {renderLongText("Explain how you usually make decisions when choosing between options.", "decisionMaking")}
-          {renderLongText("Describe how you would explain a simple task or process to someone unfamiliar with it.", "explainingTasks")}
+          {CATEGORY_KEYS.map((fieldKey, index) =>
+            renderLongText(questions[index] ?? `Question ${index + 1}`, fieldKey)
+          )}
         </FormSection>
 
         {/* Transcription Task Section */}
