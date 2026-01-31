@@ -78,6 +78,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   const challengeTimerRef = useRef<number | null>(null);
   const nextChallengeTimerRef = useRef<number | null>(null);
   const challengesShownRef = useRef(0);
+  const [testCompleted, setTestCompleted] = useState(false);
 
   const {
     logKeyDown, logKeyUp,
@@ -93,9 +94,37 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   // Calculate challenge statistics
   const correctChallenges = challengeResults.filter(r => r.isCorrect).length;
   const timedOutChallenges = challengeResults.filter(r => r.timedOut).length;
+  const wrongChallenges = challengeResults.filter(r => !r.isCorrect).length;
   const avgResponseTime = challengeResults.length > 0
     ? Math.round(challengeResults.reduce((sum, r) => sum + r.timeToAnswer, 0) / challengeResults.length)
     : 0;
+
+  // Form complete only when every field is filled; score: 100 only when complete, -5 per wrong challenge
+  const formComplete = filledFields === totalFields && totalFields > 0;
+  const baseScore = formComplete ? 100 : 0;
+  const score = Math.max(0, baseScore - wrongChallenges * 5);
+
+  // When user clicks "Save to Supabase", stop all challenges immediately
+  useEffect(() => {
+    const handleSaveClicked = () => {
+      setTestCompleted(true);
+      if (nextChallengeTimerRef.current) {
+        clearTimeout(nextChallengeTimerRef.current);
+        nextChallengeTimerRef.current = null;
+      }
+      if (challengeTimerRef.current) {
+        clearTimeout(challengeTimerRef.current);
+        challengeTimerRef.current = null;
+      }
+      setCurrentChallenge(null);
+      setActiveChallenge(null);
+      setUserAnswer('');
+      setAnswerError(null);
+      setIsFormDisabled(false);
+    };
+    window.addEventListener('multitasking-test-save-clicked', handleSaveClicked);
+    return () => window.removeEventListener('multitasking-test-save-clicked', handleSaveClicked);
+  }, []);
 
   // Update parent with current data
   useEffect(() => {
@@ -109,13 +138,15 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         challengesShown: challengesShownRef.current,
         challengesCompleted: correctChallenges,
         challengesTimedOut: timedOutChallenges,
+        wrongChallenges,
         averageResponseTime: avgResponseTime,
         challengeResults: challengeResults,
+        score,
         formSnapshot: formData,
-        questionSet: questionSet, // Include which questions were shown
+        questionSet: questionSet,
       }
     });
-  }, [formData, completedChallenges, challengeResults, completionPercentage]);
+  }, [formData, completedChallenges, challengeResults, completionPercentage, score]);
 
   // Generate challenges
   const generateChallenge = (): Challenge => {
@@ -164,10 +195,11 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   // Schedule next challenge
   const scheduleNextChallenge = () => {
-    if (challengesShownRef.current >= PACE.maxChallenges) return;
+    if (testCompleted || challengesShownRef.current >= PACE.maxChallenges) return;
 
     const delay = PACE.minDelayMs + Math.random() * (PACE.maxDelayMs - PACE.minDelayMs);
     nextChallengeTimerRef.current = window.setTimeout(() => {
+      if (testCompleted) return;
       const challenge = generateChallenge();
       setCurrentChallenge(challenge);
       setActiveChallenge(challenge.id);
@@ -179,8 +211,9 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     }, delay);
   };
 
-  // Challenge timer countdown
+  // Challenge timer countdown (don't run when test is completed)
   useEffect(() => {
+    if (testCompleted) return;
     if (currentChallenge && challengeTimer > 0) {
       challengeTimerRef.current = window.setTimeout(() => {
         setChallengeTimer(prev => prev - 1);
@@ -192,7 +225,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     return () => {
       if (challengeTimerRef.current) clearTimeout(challengeTimerRef.current);
     };
-  }, [currentChallenge, challengeTimer]);
+  }, [testCompleted, currentChallenge, challengeTimer]);
 
   const handleChallengeTimeout = () => {
     if (currentChallenge && challengeStartTime) {
@@ -228,7 +261,32 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     const isCorrect = normalize(userAnswer) === normalize(currentChallenge.correctAnswer);
     
     if (!isCorrect) {
-      setAnswerError('❌ Incorrect! Try again.');
+      // Record wrong answer: -5 points for this challenge
+      const wrongResult: ChallengeResult = {
+        challengeId: currentChallenge.id,
+        type: currentChallenge.type,
+        question: currentChallenge.question,
+        userAnswer: userAnswer,
+        correctAnswer: currentChallenge.correctAnswer,
+        isCorrect: false,
+        timeToAnswer: Date.now() - challengeStartTime,
+        timedOut: false,
+      };
+      setChallengeResults(prev => [...prev, wrongResult]);
+      setAnswerError('❌ Incorrect! -5 points. Moving on...');
+      setCurrentChallenge(null);
+      setActiveChallenge(null);
+      setUserAnswer('');
+      setIsFormDisabled(false);
+      setChallengeStartTime(null);
+      if (challengeTimerRef.current) {
+        clearTimeout(challengeTimerRef.current);
+        challengeTimerRef.current = null;
+      }
+      setTimeout(() => {
+        setAnswerError(null);
+        scheduleNextChallenge();
+      }, 1500);
       return;
     }
 
@@ -282,6 +340,35 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   return (
     <div className="relative">
+      {/* Points Bar - score only meaningful after form complete */}
+      <div className="mb-6 p-6 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg border-4 border-purple-300 shadow-xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-white text-sm font-medium mb-1">Your Score</div>
+            <div className="text-white text-5xl font-bold">{formComplete ? score : '—'}</div>
+            <div className="text-purple-100 text-xs mt-1">
+              {formComplete ? `Form complete: 100 pts • -5 per wrong challenge` : `Complete all fields to see your score (${filledFields}/${totalFields})`}
+              {formComplete && wrongChallenges > 0 && (
+                <span className="ml-2">• {wrongChallenges} wrong (-{wrongChallenges * 5} pts)</span>
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-purple-100 text-xs">
+              {formComplete ? (score >= 90 ? 'Great!' : score >= 70 ? 'Good!' : score >= 50 ? 'Keep going!' : 'Focus on challenges!') : 'Score after form complete'}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="w-full bg-purple-300/30 rounded-full h-3 overflow-hidden">
+            <div
+              className="bg-white h-full rounded-full transition-all duration-300"
+              style={{ width: `${formComplete ? score : 0}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Instructions */}
       <div className="mb-6 p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
         <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
@@ -292,6 +379,14 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
           <div>• <strong>Math challenges:</strong> Solve in {PACE.perChallengeSecs}s</div>
           <div>• <strong>Stroop tests:</strong> Select the ink color, not the word</div>
           <div>• Challenges completed: <strong>{correctChallenges}/{PACE.maxChallenges}</strong> (Timed out: {timedOutChallenges})</div>
+        </div>
+        <div className="mt-3 bg-white p-3 rounded border border-purple-200">
+          <p className="text-sm font-semibold text-gray-800 mb-1">📊 Scoring System:</p>
+          <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside">
+            <li>Complete the form to earn <strong>100 points</strong></li>
+            <li>You lose <strong>5 points</strong> for each challenge you get wrong (incorrect or timed out)</li>
+            <li>Your score is only displayed <strong>after you complete the form</strong></li>
+          </ul>
         </div>
         <div className="mt-2 text-sm text-gray-600">
           Form Progress: <strong>{completionPercentage}% Complete</strong> ({filledFields}/{totalFields} fields)
