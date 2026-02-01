@@ -142,6 +142,8 @@ interface LongTextAreaProps {
   onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onFocus?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
+  onCopy?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   disabled?: boolean;
   rows?: number;
 }
@@ -154,6 +156,8 @@ export const LongTextArea = ({
   onKeyUp,
   onFocus,
   onBlur,
+  onPaste,
+  onCopy,
   disabled = false,
   rows = 3
 }: LongTextAreaProps) => {
@@ -169,6 +173,8 @@ export const LongTextArea = ({
         onKeyUp={onKeyUp}
         onFocus={onFocus}
         onBlur={onBlur}
+        onPaste={onPaste}
+        onCopy={onCopy}
         disabled={disabled}
         rows={rows}
         className={`w-full p-2 border-2 rounded-lg focus:ring-2 outline-none transition-all resize-none ${

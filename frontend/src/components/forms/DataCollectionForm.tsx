@@ -1,4 +1,6 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import { FormData } from '../../types/formdata';
 import { FormSection, ShortInputField, LongTextArea } from './FormFields';
 import { Question, TranscriptionQuestion } from '../../types/questionpool';
@@ -32,6 +34,8 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
   disabled = false,
   className = ''
 }) => {
+  const [transcriptionExpanded, setTranscriptionExpanded] = useState(true);
+
   const handleFocus = (fieldName: keyof FormData) => () => {
     if (onFieldFocus) onFieldFocus(fieldName);
   };
@@ -118,17 +122,30 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
       {questions.transcription.length > 0 && (
         <FormSection title="Transcription Task">
           {questions.transcription.map((transcriptionQ) => (
-            <div key={transcriptionQ.id}>
-              <div className="mb-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
-                <p className="text-sm font-semibold text-gray-800 mb-2">Instructions:</p>
-                <p className="text-sm text-gray-700 mb-3">
-                  {transcriptionQ.instructions}
-                </p>
-                <div className="bg-white p-4 rounded border border-blue-300">
-                  <p className="text-sm text-gray-800 leading-relaxed font-mono">
-                    "{transcriptionQ.paragraph}"
-                  </p>
-                </div>
+            <div key={transcriptionQ.id} className="space-y-4">
+              {/* Sticky, collapsible reference paragraph */}
+              <div className="sticky top-0 z-10 -mx-1 px-1 bg-gray-50 sm:bg-blue-50/95 backdrop-blur-sm rounded-lg shadow-sm border border-blue-200">
+                <button
+                  type="button"
+                  onClick={() => setTranscriptionExpanded(!transcriptionExpanded)}
+                  className="w-full flex items-center justify-between p-3 text-left hover:bg-blue-100/50 rounded-lg transition-colors"
+                >
+                  <span className="text-sm font-semibold text-gray-800">
+                    {transcriptionExpanded ? '▼ Reference paragraph (click to collapse)' : '▶ Reference paragraph (click to show)'}
+                  </span>
+                </button>
+                {transcriptionExpanded && (
+                  <div className="px-4 pb-4">
+                    <p className="text-sm text-gray-700 mb-3">
+                      {transcriptionQ.instructions}
+                    </p>
+                    <div className="bg-white p-4 rounded border border-blue-300">
+                      <p className="text-sm sm:text-base text-gray-800 leading-relaxed font-mono">
+                        "{transcriptionQ.paragraph}"
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
               <LongTextArea
                 label={transcriptionQ.label}
@@ -138,6 +155,8 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
                 onKeyUp={onKeyUp as any}
                 onFocus={handleFocus(transcriptionQ.id)}
                 onBlur={handleBlur}
+                onPaste={(e) => e.preventDefault()}
+                onCopy={(e) => e.preventDefault()}
                 disabled={disabled}
                 rows={6}
               />
