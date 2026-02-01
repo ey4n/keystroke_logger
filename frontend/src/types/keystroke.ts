@@ -10,7 +10,7 @@ export interface KeystrokeEvent {
   deviceInfo?: string;         // UA string (once per event is fine)
 }
 
-export type TestType = 'free' | 'timed' | 'multitasking' | 'noise' |'lying';
+export type TestType = 'free' | 'timed' | 'multitasking' | 'noise' | 'lying' | 'colour';
 
 export interface TestConfig {
   id: TestType;
