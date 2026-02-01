@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
-import { FormData, initialFormData } from '../../types/formdata';
+import { FormData, createInitialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
+import { generateQuestionSet, QuestionSet } from '../../types/questionpool';
 
 interface ColourTestProps {
   sessionId: string;
@@ -33,7 +34,16 @@ const STRESS_CONFIG = {
 // -----------------------------------------------
 
 export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
-  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const questionSet: QuestionSet = useMemo(() => generateQuestionSet(3, 4, 4), []);
+  const allQuestionIds = useMemo(() => [
+    ...questionSet.requiredShort.map(q => q.id),
+    ...questionSet.short.map(q => q.id),
+    ...questionSet.directLong.map(q => q.id),
+    ...questionSet.indirectLong.map(q => q.id),
+    ...questionSet.transcription.map(q => q.id),
+  ], [questionSet]);
+
+  const [formData, setFormData] = useState<FormData>(() => createInitialFormData(allQuestionIds));
   const [hasStarted, setHasStarted] = useState(false);
   const [isStressActive, setIsStressActive] = useState(false);
   const [backgroundColor, setBackgroundColor] = useState('white');
@@ -46,12 +56,11 @@ export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
     logKeyDown, logKeyUp,
     setFieldName,
     clearLogs, getLogs, getAnalytics,
-  } = useKeystrokeLogger();
+  } = useKeystrokeLogger(sessionId);
 
-  // Calculate completion percentage
-  const totalFields = Object.keys(formData).length;
-  const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
-  const completionPercentage = Math.round((filledFields / totalFields) * 100);
+  const totalFields = allQuestionIds.length;
+  const filledFields = allQuestionIds.filter(id => formData[id]?.trim() !== '').length;
+  const completionPercentage = totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
 
   // Update parent with current data
   useEffect(() => {
@@ -119,7 +128,7 @@ export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
   };
 
   const handleFieldFocus = (fieldName: keyof FormData) => {
-    if (setFieldName) setFieldName(fieldName);
+    if (setFieldName) setFieldName(String(fieldName));
   };
 
   const handleFieldBlur = () => {
@@ -167,6 +176,7 @@ export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
       {/* Form */}
       <DataCollectionForm
         formData={formData}
+        questions={questionSet}
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 
-interface ConsentData {
+export interface ConsentData {
   consentGiven: boolean;
   deviceType: string;
   primaryLanguage: string;
@@ -54,6 +54,18 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
     if (detectedBrowser) {
       setBrowser(detectedBrowser);
     }
+  }, []);
+
+  // Auto-fill time of day based on current time (user can change)
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hour = new Date().getHours();
+    let value = '';
+    if (hour >= 6 && hour < 12) value = 'morning';
+    else if (hour >= 12 && hour < 17) value = 'afternoon';
+    else if (hour >= 17 && hour < 21) value = 'evening';
+    else value = 'night'; // 21-5
+    setTimeOfDay(value);
   }, []);
 
   const validate = (): boolean => {
@@ -180,7 +192,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
             <select
               value={deviceType}
               onChange={(e) => setDeviceType(e.target.value)}
-              className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
+              className={`w-full min-h-[48px] p-3 sm:p-3 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
                 errors.deviceType
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
                   : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
@@ -212,7 +224,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
                   setLanguageOther('');
                 }
               }}
-              className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
+              className={`w-full min-h-[48px] p-3 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
                 errors.primaryLanguage
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
                   : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
@@ -255,7 +267,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
             <select
               value={browser}
               onChange={(e) => setBrowser(e.target.value)}
-              className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
+              className={`w-full min-h-[48px] p-3 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
                 errors.browser
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
                   : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
@@ -290,7 +302,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
                 <select
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
+                  className={`w-full min-h-[48px] p-3 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
                     errors.location
                       ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
                       : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
@@ -315,7 +327,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
                 <select
                   value={noiseLevel}
                   onChange={(e) => setNoiseLevel(e.target.value)}
-                  className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
+                  className={`w-full min-h-[48px] p-3 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
                     errors.noiseLevel
                       ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
                       : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
@@ -339,7 +351,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
                 <select
                   value={sittingOrStanding}
                   onChange={(e) => setSittingOrStanding(e.target.value)}
-                  className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
+                  className={`w-full min-h-[48px] p-3 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
                     errors.sittingOrStanding
                       ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
                       : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
@@ -362,7 +374,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
                 <select
                   value={timeOfDay}
                   onChange={(e) => setTimeOfDay(e.target.value)}
-                  className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
+                  className={`w-full min-h-[48px] p-3 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
                     errors.timeOfDay
                       ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
                       : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
@@ -392,7 +404,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
                   value={sleepLastNight}
                   onChange={(e) => setSleepLastNight(e.target.value)}
                   placeholder="e.g., 7.5"
-                  className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
+                  className={`w-full min-h-[48px] p-3 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
                     errors.sleepLastNight
                       ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
                       : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
@@ -411,7 +423,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
                 <select
                   value={caffeineLast6Hours}
                   onChange={(e) => setCaffeineLast6Hours(e.target.value)}
-                  className={`w-full p-3 border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
+                  className={`w-full min-h-[48px] p-3 text-base sm:text-sm border-2 rounded-lg focus:ring-2 focus:outline-none transition-all ${
                     errors.caffeineLast6Hours
                       ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
                       : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
@@ -432,15 +444,15 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Current mood baseline (stress 0–10) <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
                     <button
                       key={rating}
                       type="button"
                       onClick={() => setCurrentMoodBaseline(rating)}
                       className={`
-                        flex-1 py-3 px-2 rounded-lg font-semibold text-sm
-                        transition-all duration-200 transform hover:scale-105 active:scale-95
+                        flex-1 min-h-[48px] min-w-[44px] py-3 px-2 rounded-lg font-semibold text-base sm:text-sm
+                        transition-all duration-200 transform hover:scale-105 active:scale-95 touch-manipulation
                         ${currentMoodBaseline === rating
                           ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300 ring-offset-2'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-gray-300'
@@ -451,7 +463,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
                     </button>
                   ))}
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 px-1 mt-2">
+                <div className="flex justify-between text-xs sm:text-xs text-gray-500 px-1 mt-2">
                   <span>1 (Not at all stressed)</span>
                   <span>10 (Extremely stressed)</span>
                 </div>
