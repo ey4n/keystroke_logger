@@ -105,14 +105,14 @@ export function KeystrokeDataDisplay({
             const finalScore = Math.max(0, baseScore - transcriptionPenalty);
             const timeTaken = formData.timeElapsed || 0; // Time in seconds
             
-            // Note: Timed test leaderboard uses time, but we can store score too if needed
             await saveLeaderboardEntry({
               userName,
               testType: 'timed',
+              score: finalScore,
               timeTaken,
               sessionId: sessionId || '',
             });
-            console.log(`✅ Saved leaderboard entry for timed test: ${timeTaken}s (score: ${finalScore} after transcription penalty)`);
+            console.log(`✅ Saved leaderboard entry for timed test: ${finalScore} pts, ${timeTaken}s (score: ${finalScore} after transcription penalty)`);
           } else if (testType === 'multitasking') {
             // For multitasking test, apply transcription penalty to score
             const baseScore = formData.score !== undefined ? formData.score : 0;

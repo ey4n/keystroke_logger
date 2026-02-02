@@ -72,10 +72,15 @@ export function Leaderboard({
   return (
     <div className="mt-6 p-6 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl shadow-lg border-2 border-indigo-200">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-          {testType === 'timed' ? '⏱️' : '🧠'}
-          <span>{testType === 'timed' ? 'Timed Test' : 'Multitasking Test'} Leaderboard</span>
-        </h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            {testType === 'timed' ? '⏱️' : '🧠'}
+            <span>{testType === 'timed' ? 'Timed Test' : 'Multitasking Test'} Leaderboard</span>
+          </h2>
+          {testType === 'timed' && (
+            <p className="text-sm text-gray-500 mt-0.5">Ranked by score (then fastest time)</p>
+          )}
+        </div>
         <button
           onClick={loadLeaderboard}
           className="px-3 py-1 text-sm bg-white border border-indigo-300 text-indigo-700 rounded-lg hover:bg-indigo-50 transition-colors"
@@ -140,9 +145,11 @@ export function Leaderboard({
                     {testType === 'timed' ? (
                       <div>
                         <div className="text-2xl font-bold text-indigo-600">
-                          {entry.time_taken ? formatTime(entry.time_taken) : 'N/A'}
+                          {entry.score != null ? `${entry.score} pts` : 'N/A'}
                         </div>
-                        <div className="text-xs text-gray-500">Time</div>
+                        <div className="text-xs text-gray-500">
+                          {entry.time_taken != null ? formatTime(entry.time_taken) : '—'} time
+                        </div>
                       </div>
                     ) : (
                       <div>
@@ -169,7 +176,12 @@ export function Leaderboard({
               <span className="font-semibold text-indigo-700">{currentUserName}</span>
               {testType === 'timed' ? (
                 <span className="text-xl font-bold text-indigo-600">
-                  {currentTime ? formatTime(currentTime) : 'N/A'}
+                  {currentScore != null ? `${currentScore} pts` : 'N/A'}
+                  {currentTime != null && (
+                    <span className="text-sm font-normal text-indigo-500 ml-1">
+                      ({formatTime(currentTime)})
+                    </span>
+                  )}
                 </span>
               ) : (
                 <span className="text-xl font-bold text-purple-600">

@@ -35,9 +35,9 @@ export async function getLeaderboard(testType: 'timed' | 'multitasking', limit: 
     .select('*')
     .eq('test_type', testType);
 
-  // Sort by time (ascending) for timed test, by score (descending) for multitasking
+  // Sort: timed = by score desc then time asc; multitasking = by score desc
   if (testType === 'timed') {
-    query = query.order('time_taken', { ascending: true, nullsFirst: false });
+    query = query.order('score', { ascending: false, nullsFirst: false }).order('time_taken', { ascending: true, nullsFirst: false });
   } else {
     query = query.order('score', { ascending: false, nullsFirst: false });
   }
@@ -50,26 +50,30 @@ export async function getLeaderboard(testType: 'timed' | 'multitasking', limit: 
 
   if (!data) return [];
 
-  // Sort in JavaScript to ensure NULL values are always last
+  // Sort in JavaScript: timed = score desc then time asc (NULLs last); multitasking = score desc (NULLs last)
   const sorted = [...data].sort((a, b) => {
     if (testType === 'timed') {
-      // For timed: sort by time ascending, NULLs last
+      // Primary: score descending (higher score first)
+      const scoreA = a.score ?? -1;
+      const scoreB = b.score ?? -1;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      // Tiebreaker: time ascending (faster time first)
       if (a.time_taken === null && b.time_taken === null) return 0;
-      if (a.time_taken === null) return 1; // a goes to end
-      if (b.time_taken === null) return -1; // b goes to end
+      if (a.time_taken === null) return 1;
+      if (b.time_taken === null) return -1;
       return a.time_taken - b.time_taken;
     } else {
-      // For multitasking: sort by score descending, NULLs last
+      // Multitasking: score descending, NULLs last
       if (a.score === null && b.score === null) return 0;
-      if (a.score === null) return 1; // a goes to end
-      if (b.score === null) return -1; // b goes to end
-      return b.score - a.score; // descending
+      if (a.score === null) return 1;
+      if (b.score === null) return -1;
+      return b.score - a.score;
     }
   });
 
-  // Return only entries with valid scores/times, up to the limit
-  const validEntries = sorted.filter(entry => 
-    testType === 'timed' ? entry.time_taken !== null : entry.score !== null
+  // Return only entries with valid data: timed needs score (time optional for display), multitasking needs score
+  const validEntries = sorted.filter(entry =>
+    testType === 'timed' ? entry.score != null : entry.score != null
   );
 
   // If we have valid entries, return them (up to limit)
