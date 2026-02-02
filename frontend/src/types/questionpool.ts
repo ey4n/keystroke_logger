@@ -61,7 +61,7 @@ export const QUESTION_POOLS = {
       type: 'transcription',
       category: 'transcription',
       paragraph: 'Modern workplaces often require individuals to manage multiple tasks under strict deadlines. Responding to emails, completing reports, and coordinating with others can become stressful, especially when unexpected changes occur. Maintaining focus and accuracy during such situations is important for effective performance.',
-      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box.',
+      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box. Include punctuation (e.g. periods, commas) as shown.',
     },
     {
       id: 'transcription',
@@ -69,7 +69,7 @@ export const QUESTION_POOLS = {
       type: 'transcription',
       category: 'transcription',
       paragraph: 'Effective communication relies on clarity and active listening. When sharing ideas or instructions, it is essential to ensure that the message is understood correctly. Asking questions and providing feedback helps prevent misunderstandings and builds stronger working relationships in professional environments.',
-      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box.',
+      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box. Include punctuation (e.g. periods, commas) as shown.',
     },
     {
       id: 'transcription',
@@ -77,7 +77,7 @@ export const QUESTION_POOLS = {
       type: 'transcription',
       category: 'transcription',
       paragraph: 'Time management is a critical skill for balancing work and personal responsibilities. Setting priorities, creating schedules, and avoiding distractions can significantly improve productivity. By organizing tasks effectively, individuals can reduce stress and achieve their goals more efficiently.',
-      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box.',
+      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box. Include punctuation (e.g. periods, commas) as shown.',
     },
     {
       id: 'transcription',
@@ -85,7 +85,7 @@ export const QUESTION_POOLS = {
       type: 'transcription',
       category: 'transcription',
       paragraph: 'Learning new skills requires dedication and consistent practice over time. Whether mastering a language, developing technical expertise, or improving creative abilities, progress depends on regular effort. Staying motivated through challenges and celebrating small achievements can help maintain momentum.',
-      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box.',
+      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box. Include punctuation (e.g. periods, commas) as shown.',
     },
     {
       id: 'transcription',
@@ -93,7 +93,7 @@ export const QUESTION_POOLS = {
       type: 'transcription',
       category: 'transcription',
       paragraph: 'Collaborative projects benefit from diverse perspectives and shared expertise. Team members contribute unique insights that can lead to innovative solutions and better outcomes. Fostering an environment of trust and open communication encourages creativity and strengthens team cohesion.',
-      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box.',
+      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box. Include punctuation (e.g. periods, commas) as shown.',
     },
     {
       id: 'transcription',
@@ -101,7 +101,7 @@ export const QUESTION_POOLS = {
       type: 'transcription',
       category: 'transcription',
       paragraph: 'Adapting to change is an essential part of professional development. New technologies, processes, and responsibilities emerge regularly in most fields. Embracing flexibility and maintaining a growth mindset enables individuals to navigate transitions successfully and continue advancing in their careers.',
-      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box.',
+      instructions: 'Please read the paragraph below carefully, then type it exactly as shown in the text box. Include punctuation (e.g. periods, commas) as shown.',
     },
   ] as TranscriptionQuestion[],
 };

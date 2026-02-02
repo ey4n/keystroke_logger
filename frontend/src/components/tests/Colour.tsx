@@ -74,9 +74,10 @@ export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
         stressEventsTriggered: stressEventsCountRef.current,
         stressEvents: stressEvents,
         formSnapshot: formData,
+        questionSet, // so transcription validation uses the correct reference paragraph
       }
     });
-  }, [formData, stressEvents, completionPercentage]);
+  }, [formData, stressEvents, completionPercentage, questionSet]);
 
   // Schedule next stress event
   const scheduleNextStressEvent = () => {
