@@ -42,6 +42,10 @@ export function KeystrokeDataDisplay({
     if (testType === 'multitasking') {
       window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
     }
+    // Stop timer and popups for timed test
+    if (testType === 'timed') {
+      window.dispatchEvent(new CustomEvent('timed-test-save-clicked'));
+    }
 
     // Show stress form first
     setShowStressForm(true);

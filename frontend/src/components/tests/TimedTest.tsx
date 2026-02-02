@@ -32,14 +32,16 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     ];
   }, [questionSet]);
 
+  const TOTAL_SECONDS = 120;
   const [formData, setFormData] = useState<FormData>(() => 
     createInitialFormData(allQuestionIds)
   );
-  const [timeLeft, setTimeLeft] = useState(300);
+  const [timeLeft, setTimeLeft] = useState(TOTAL_SECONDS);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [timerExpired, setTimerExpired] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [startTime, setStartTime] = useState<number | null>(null);
+  const [timeWarningMessage, setTimeWarningMessage] = useState<string | null>(null);
   
   const { 
     logKeyDown, 
@@ -51,9 +53,29 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   } = useKeystrokeLogger();
   
   const timerRef = useRef<number | null>(null);
+  const shownThresholdsRef = useRef<Set<number>>(new Set());
 
   // Calculate elapsed time
-  const elapsedTime = startTime ? 300 - timeLeft : 0;
+  const elapsedTime = startTime ? TOTAL_SECONDS - timeLeft : 0;
+
+  // Every 20% of time gone, show a reminder (20%, 40%, 60%, 80%); user must acknowledge to continue
+  useEffect(() => {
+    if (!isTimerActive || timerExpired) return;
+    const elapsed = elapsedTime;
+    const thresholds = [
+      { pct: 20, sec: TOTAL_SECONDS * 0.2, msg: '20% of your time is gone! You have 80% left.' },
+      { pct: 40, sec: TOTAL_SECONDS * 0.4, msg: '40% of your time is gone! You have 60% left.' },
+      { pct: 60, sec: TOTAL_SECONDS * 0.6, msg: '60% of your time is gone! You have 40% left.' },
+      { pct: 80, sec: TOTAL_SECONDS * 0.8, msg: '80% of your time is gone! Only 20% left!' },
+    ];
+    for (const { pct, sec, msg } of thresholds) {
+      if (elapsed >= sec && !shownThresholdsRef.current.has(pct)) {
+        shownThresholdsRef.current.add(pct);
+        setTimeWarningMessage(msg);
+        break;
+      }
+    }
+  }, [elapsedTime, isTimerActive, timerExpired]);
 
   // Calculate completion percentage
   const totalFields = allQuestionIds.length;
@@ -75,8 +97,8 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     onTestDataUpdate({
       getLogs,
       getAnalytics,
-      formData: {
-        timeLimit: 300,
+        formData: {
+          timeLimit: TOTAL_SECONDS,
         timeElapsed: elapsedTime,
         timeRemaining: timeLeft,
         timerExpired,
@@ -112,6 +134,21 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       }
     };
   }, [isTimerActive, timeLeft]);
+
+  // When user clicks Save Data, stop timer, clear popups, and lock form
+  useEffect(() => {
+    const handleSaveClicked = () => {
+      setIsTimerActive(false);
+      setTimeWarningMessage(null);
+      setTimerExpired(true);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+    window.addEventListener('timed-test-save-clicked', handleSaveClicked);
+    return () => window.removeEventListener('timed-test-save-clicked', handleSaveClicked);
+  }, []);
 
   const handleInputChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -163,6 +200,33 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
         </div>
       </div>
 
+      {/* Time warning modal (every 20% gone) — centered popup, must acknowledge to continue */}
+      {timeWarningMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            aria-hidden
+          />
+          <div className="relative w-full max-w-md rounded-2xl border-4 border-red-500 bg-white p-8 shadow-2xl animate-pulse">
+            <div className="text-center">
+              <div className="mb-4 text-6xl">⏰</div>
+              <h3 className="text-xl font-bold text-red-700 mb-2">Time reminder</h3>
+              <p className="text-lg font-semibold text-gray-800 mb-2">
+                {timeWarningMessage}
+              </p>
+              <p className="text-sm text-red-600 mb-6">Keep going — time is running out!</p>
+              <button
+                type="button"
+                onClick={() => setTimeWarningMessage(null)}
+                className="w-full py-4 px-6 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-lg shadow-lg transition-colors"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Timer Status */}
       <div className={`mb-6 p-4 rounded-lg border-2 ${
         timerExpired ? 'bg-red-50 border-red-300' : 
@@ -179,7 +243,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
             <p className="text-sm text-gray-600">
               {timerExpired ? 'You ran out of time!' : 
                isTimerActive ? 'Fill out as much as you can!' : 
-               'Start typing to begin the 5-minute challenge'}
+               'Start typing to begin the 2-minute challenge'}
             </p>
           </div>
           <div className="text-right">
@@ -202,7 +266,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       <div className="mb-6 p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
         <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
         <p className="text-sm text-gray-700 mb-3">
-          You have <strong>5 minutes (300 seconds)</strong> to fill out as many fields as possible. 
+          You have <strong>2 minutes (120 seconds)</strong> to fill out as many fields as possible. 
           The timer starts as soon as you begin typing. Answer quickly but naturally!
         </p>
         <div className="bg-white p-3 rounded border border-indigo-200">
