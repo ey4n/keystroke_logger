@@ -39,7 +39,7 @@ const PACE = {
   minDelayMs: 8000,      // 8s minimum between challenges
   maxDelayMs: 14000,     // up to 14s
   perChallengeSecs: 10,  // give 10s to answer
-  maxChallenges: 10,     // allow max 10 challenges
+  maxChallenges: 100,     // allow max 10 challenges
 } as const;
 // -----------------------------------------------------------------------
 
@@ -79,6 +79,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   const nextChallengeTimerRef = useRef<number | null>(null);
   const challengesShownRef = useRef(0);
   const [testCompleted, setTestCompleted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     logKeyDown, logKeyUp,
@@ -163,6 +164,20 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         { q: '64 ÷ 8 × 5', a: '40' },
         { q: '25 + 15 - 9', a: '31' },
         { q: '12 × 3 - 7', a: '29' },
+        { q: '15 + 6 × 4', a: '39' },
+        { q: '20 - 3 × 5', a: '5' },
+        { q: '9 × 3 + 14', a: '41' },
+        { q: '11 × 4 - 9', a: '35' },
+        { q: '18 + 7 × 3', a: '39' },
+        { q: '50 - 8 × 4', a: '18' },
+        { q: '6 × 7 - 12', a: '30' },
+        { q: '35 + 5 × 6', a: '65' },
+        { q: '5 × 8 ÷ 2', a: '20' },
+        { q: '6 × 9 ÷ 3', a: '18' },
+        { q: '7 × 4 ÷ 2', a: '14' },
+        { q: '8 × 7 ÷ 4', a: '14' },
+        { q: '9 × 6 ÷ 3', a: '18' },
+        { q: '4 × 12 ÷ 6', a: '8' }
       ];
       const op = operations[Math.floor(Math.random() * operations.length)];
       return {
@@ -179,6 +194,30 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         { word: 'YELLOW', ink: 'green',  answer: 'Green' },
         { word: 'PURPLE', ink: 'orange', answer: 'Orange' },
         { word: 'ORANGE', ink: 'purple', answer: 'Purple' },
+        { word: 'GREEN',  ink: 'red',    answer: 'Red' },
+        { word: 'YELLOW', ink: 'red',    answer: 'Red' },
+        { word: 'PURPLE', ink: 'red',    answer: 'Red' },
+        { word: 'ORANGE', ink: 'red',    answer: 'Red' },
+        { word: 'RED',    ink: 'blue',   answer: 'Blue' },
+        { word: 'GREEN',  ink: 'blue',   answer: 'Blue' },
+        { word: 'YELLOW', ink: 'blue',   answer: 'Blue' },
+        { word: 'ORANGE', ink: 'blue',   answer: 'Blue' },
+        { word: 'RED',    ink: 'green',  answer: 'Green' },
+        { word: 'BLUE',   ink: 'green',  answer: 'Green' },
+        { word: 'PURPLE', ink: 'green',  answer: 'Green' },
+        { word: 'ORANGE', ink: 'green',  answer: 'Green' },
+        { word: 'RED',    ink: 'yellow', answer: 'Yellow' },
+        { word: 'BLUE',   ink: 'yellow', answer: 'Yellow' },
+        { word: 'PURPLE', ink: 'yellow', answer: 'Yellow' },
+        { word: 'ORANGE', ink: 'yellow', answer: 'Yellow' },
+        { word: 'RED',    ink: 'purple', answer: 'Purple' },
+        { word: 'BLUE',   ink: 'purple', answer: 'Purple' },
+        { word: 'GREEN',  ink: 'purple', answer: 'Purple' },
+        { word: 'YELLOW', ink: 'purple', answer: 'Purple' },
+        { word: 'RED',    ink: 'orange', answer: 'Orange' },
+        { word: 'BLUE',   ink: 'orange', answer: 'Orange' },
+        { word: 'GREEN',  ink: 'orange', answer: 'Orange' },
+        { word: 'YELLOW', ink: 'orange', answer: 'Orange' },
       ];
       const combo = stroopCombos[Math.floor(Math.random() * stroopCombos.length)];
       return {
@@ -255,42 +294,44 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     }, 1500);
   };
 
-  const handleChallengeSubmit = () => {
-    if (!currentChallenge || !challengeStartTime) return;
+const handleChallengeSubmit = () => {
+    if (!currentChallenge || !challengeStartTime || isSubmitting) return;
     
     const isCorrect = normalize(userAnswer) === normalize(currentChallenge.correctAnswer);
     
     if (!isCorrect) {
-      // Record wrong answer: -5 points for this challenge
+      setIsSubmitting(true); 
+      // Record wrong answer immediately
       const wrongResult: ChallengeResult = {
         challengeId: currentChallenge.id,
         type: currentChallenge.type,
         question: currentChallenge.question,
-        userAnswer: userAnswer,
+        userAnswer: userAnswer || '(no answer)',
         correctAnswer: currentChallenge.correctAnswer,
         isCorrect: false,
         timeToAnswer: Date.now() - challengeStartTime,
-        timedOut: false,
+        timedOut: false, 
       };
       setChallengeResults(prev => [...prev, wrongResult]);
-      setAnswerError('❌ Incorrect! -5 points. Moving on...');
-      setCurrentChallenge(null);
-      setActiveChallenge(null);
-      setUserAnswer('');
-      setIsFormDisabled(false);
-      setChallengeStartTime(null);
-      if (challengeTimerRef.current) {
-        clearTimeout(challengeTimerRef.current);
-        challengeTimerRef.current = null;
-      }
+      
+      // Show immediate feedback with correct answer
+      setAnswerError(`❌ Incorrect! The correct answer was: ${currentChallenge.correctAnswer}`);
+      
+      // Close modal and move on after brief display
       setTimeout(() => {
+        setCurrentChallenge(null);
+        setActiveChallenge(null);
+        setUserAnswer('');
         setAnswerError(null);
+        setIsFormDisabled(false);
+        setChallengeStartTime(null);
         scheduleNextChallenge();
-      }, 1500);
+        setIsSubmitting(false); 
+      }, 2000); // Show for 2 seconds
       return;
     }
-
     // Record successful result
+    setIsSubmitting(true);
     const result: ChallengeResult = {
       challengeId: currentChallenge.id,
       type: currentChallenge.type,
@@ -311,6 +352,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     setIsFormDisabled(false);
     setChallengeStartTime(null);
     scheduleNextChallenge();
+    setIsSubmitting(false);
   };
 
   const handleOptionClick = (option: string) => {
@@ -378,7 +420,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         <div className="text-xs text-gray-600 space-y-1">
           <div>• <strong>Math challenges:</strong> Solve in {PACE.perChallengeSecs}s</div>
           <div>• <strong>Stroop tests:</strong> Select the ink color, not the word</div>
-          <div>• Challenges completed: <strong>{correctChallenges}/{PACE.maxChallenges}</strong> (Timed out: {timedOutChallenges})</div>
+          <div>• Challenges completed: <strong>{correctChallenges}</strong> (Challenges failed {wrongChallenges})</div>
         </div>
         <div className="mt-3 bg-white p-3 rounded border border-purple-200">
           <p className="text-sm font-semibold text-gray-800 mb-1">📊 Scoring System:</p>
