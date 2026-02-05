@@ -133,43 +133,6 @@ export function StressWorkloadForm({ onSubmit, onCancel }: StressWorkloadFormPro
               onChange={setConcentrationDifficulty}
             />
 
-            {/* More Stressed Than Baseline */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Did you feel more stressed than during the baseline typing tasks?
-              </label>
-              <div className="flex gap-4">
-                {(['Yes', 'No', 'Unsure'] as const).map((option) => (
-                  <label key={option} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="moreStressedThanBaseline"
-                      value={option}
-                      checked={moreStressedThanBaseline === option}
-                      onChange={() => setMoreStressedThanBaseline(option)}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
-                    />
-                    <span className="text-sm text-gray-700">{option}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Optional Free Text */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Did anything about the tasks make you feel uncomfortable or distracted?
-                <span className="text-gray-400 font-normal ml-1">(optional)</span>
-              </label>
-              <textarea
-                value={discomfortOrDistraction}
-                onChange={(e) => setDiscomfortOrDistraction(e.target.value)}
-                placeholder="Please share any thoughts or concerns..."
-                rows={4}
-                className="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:border-indigo-500 focus:ring-indigo-200 outline-none transition-all resize-none"
-              />
-            </div>
-
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4">
               {onCancel && (
