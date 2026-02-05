@@ -156,6 +156,15 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
       <div className="max-w-2xl w-full bg-white rounded-lg shadow-xl p-8 border border-gray-200">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Instructions
+          </h1>
+          <p className="text-gray-600">
+            Please complete the free, timed and multitasking test. After each individual test, please select "Show all data", and click "Save to supabase". Thank you!
+          </p>
+        </div>
+        <div className="border-t-2 border-gray-200 pt-6 mt-6"></div>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Research Consent Form
           </h1>
           <p className="text-gray-600">
@@ -187,7 +196,7 @@ export function ConsentForm({ onConsent }: ConsentFormProps) {
           {/* Device Type Dropdown */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Device used <span className="text-red-500">*</span>
+              Device used (Please use a laptop/keyboard if possible!)<span className="text-red-500">*</span>
             </label>
             <select
               value={deviceType}
