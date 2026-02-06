@@ -3,10 +3,10 @@
 import React, { useState } from 'react';
 
 export interface StressWorkloadData {
-  stressLevel: number; // 0-100
-  mentalDemand: number; // 0-100
-  rushedFeeling: number; // 0-100
-  concentrationDifficulty: number; // 0-100
+  stressLevel: number; // 1-10
+  mentalDemand: number; // 1-10
+  rushedFeeling: number; // 1-10
+  concentrationDifficulty: number; // 1-10
   moreStressedThanBaseline: 'Yes' | 'No' | 'Unsure';
   discomfortOrDistraction?: string; // optional free text
 }
@@ -24,12 +24,6 @@ export function StressWorkloadForm({ onSubmit, onCancel }: StressWorkloadFormPro
   const [moreStressedThanBaseline, setMoreStressedThanBaseline] = useState<'Yes' | 'No' | 'Unsure'>('Unsure');
   const [discomfortOrDistraction, setDiscomfortOrDistraction] = useState('');
 
-  // Convert 1-10 scale to 0-100 for database (rounded to integer)
-  const scaleTo100 = (value: number): number => {
-    // Map 1 -> 0, 10 -> 100, then round to integer
-    return Math.round(((value - 1) / 9) * 100);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -40,10 +34,10 @@ export function StressWorkloadForm({ onSubmit, onCancel }: StressWorkloadFormPro
     }
 
     onSubmit({
-      stressLevel: scaleTo100(stressLevel),
-      mentalDemand: scaleTo100(mentalDemand),
-      rushedFeeling: scaleTo100(rushedFeeling),
-      concentrationDifficulty: scaleTo100(concentrationDifficulty),
+      stressLevel,
+      mentalDemand,
+      rushedFeeling,
+      concentrationDifficulty,
       moreStressedThanBaseline,
       discomfortOrDistraction: discomfortOrDistraction.trim() || undefined,
     });
@@ -61,15 +55,15 @@ export function StressWorkloadForm({ onSubmit, onCancel }: StressWorkloadFormPro
     return (
       <div className="space-y-3">
         <label className="block text-sm font-medium text-gray-700">{label}</label>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
             <button
               key={rating}
               type="button"
               onClick={() => onChange(rating)}
               className={`
-                flex-1 py-3 px-2 rounded-lg font-semibold text-sm
-                transition-all duration-200 transform hover:scale-105 active:scale-95
+                flex-1 min-h-[48px] min-w-[44px] py-3 px-2 rounded-lg font-semibold text-base sm:text-sm
+                transition-all duration-200 transform hover:scale-105 active:scale-95 touch-manipulation
                 ${value === rating
                   ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300 ring-offset-2'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-gray-300'
