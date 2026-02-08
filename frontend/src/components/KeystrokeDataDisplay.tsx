@@ -5,6 +5,7 @@ import { saveKeystrokesNoAuth } from '../services/saveKeystrokes';
 import { StressWorkloadForm, StressWorkloadData } from './StressWorkloadForm';
 import { saveStressWorkload } from '../services/saveStressWorkload';
 import { saveLeaderboardEntry } from '../services/saveLeaderboard';
+import { saveTimings } from '../services/saveTimings';
 import { Leaderboard } from './Leaderboard';
 import { getTranscriptionPenaltyDetails, getTranscriptionErrorExplanation } from '../utils/transcriptionValidation';
 
@@ -16,6 +17,7 @@ interface KeystrokeDataDisplayProps {
   testType?: string;
   sessionId?: string;
   formData?: Record<string, any>;
+  getActiveTypingTime?: () => number; 
 }
 
 export function KeystrokeDataDisplay({
@@ -26,6 +28,7 @@ export function KeystrokeDataDisplay({
   testType = 'unknown',
   sessionId,
   formData,
+  getActiveTypingTime,
 }: KeystrokeDataDisplayProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -84,6 +87,29 @@ export function KeystrokeDataDisplay({
       // Save stress/workload data
       await saveStressWorkload(sessionId || '', testType, stressData);
       console.log(`✅ Successfully saved stress/workload data!`);
+
+      if (getActiveTypingTime && (testType === 'free' || testType === 'timed' || testType === 'multitasking')) {
+      try {
+          const activeTime = getActiveTypingTime();
+          console.log(`🔵 Active typing time: ${activeTime}ms (${(activeTime / 1000).toFixed(2)}s)`);
+          
+          if (activeTime > 0) {
+            await saveTimings({
+              sessionId: sessionId || '',
+              testType: testType as 'free' | 'timed' | 'multitasking',
+              timing: activeTime,
+            });
+            console.log(`✅ Successfully saved active typing time: ${(activeTime / 1000).toFixed(2)}s`);
+          } else {
+            console.warn('⚠️ Active typing time is 0, skipping save');
+          }
+        } catch (timingError) {
+          console.error('❌ Error saving timing data:', timingError);
+          // Don't fail the whole save if timing fails
+        }
+      } else {
+        console.warn('⚠️ getActiveTypingTime function not available or test type not supported for timing');
+      }
 
       // Validate transcription and calculate penalty (use the paragraph that was actually shown)
       const transcriptionText = formData?.formSnapshot?.transcription || formData?.transcription || '';
@@ -355,12 +381,12 @@ export function KeystrokeDataDisplay({
                     : 'bg-green-600 hover:bg-green-700 text-white'
                 }`}
               >
-                {isSaving ? 'Saving…' : '💾 Save to Supabase'}
+                {isSaving ? 'Submitting…' : 'Submit Form'}
               </button>
               
               {saveStatus === 'success' && (
                 <span className="text-green-600 font-medium text-sm">
-                  ✓ Saved!
+                  ✓ Submitted!
                 </span>
               )}
               
