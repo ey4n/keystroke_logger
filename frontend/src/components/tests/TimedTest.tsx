@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
+import { useActiveTypingTimer } from '../../hooks/useActiveTypingTimer';
 import { FormData, createInitialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
 import { generateQuestionSet, QuestionSet } from '../../types/questionpool';
@@ -12,6 +13,7 @@ interface TimedTestProps {
     getLogs: () => any[];
     getAnalytics: () => any;
     formData: any;
+    getActiveTypingTime: () => number; // Add active typing time getter
   }) => void;
 }
 
@@ -32,7 +34,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     ];
   }, [questionSet]);
 
-  const TOTAL_SECONDS = 120;
+  const TOTAL_SECONDS = 300;
   const [formData, setFormData] = useState<FormData>(() => 
     createInitialFormData(allQuestionIds)
   );
@@ -52,6 +54,9 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     getAnalytics,
     setFieldName
   } = useKeystrokeLogger();
+
+  // Initialize active typing timer
+  const typingTimer = useActiveTypingTimer();
   
   const timerRef = useRef<number | null>(null);
   const shownThresholdsRef = useRef<Set<number>>(new Set());
@@ -73,10 +78,12 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       if (elapsed >= sec && !shownThresholdsRef.current.has(pct)) {
         shownThresholdsRef.current.add(pct);
         setTimeWarningMessage(msg);
+        // Pause typing timer when warning appears
+        typingTimer.pauseTimer();
         break;
       }
     }
-  }, [elapsedTime, isTimerActive, timerExpired]);
+  }, [elapsedTime, isTimerActive, timerExpired, typingTimer]);
 
   // Calculate completion percentage
   const totalFields = allQuestionIds.length;
@@ -98,8 +105,8 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     onTestDataUpdate({
       getLogs,
       getAnalytics,
-        formData: {
-          timeLimit: TOTAL_SECONDS,
+      formData: {
+        timeLimit: TOTAL_SECONDS,
         timeElapsed: elapsedTime,
         timeRemaining: timeLeft,
         timerExpired,
@@ -110,9 +117,10 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
         maxPoints,
         formSnapshot: formData,
         questionSet: questionSet, // Include which questions were shown
-      }
+      },
+      getActiveTypingTime: typingTimer.getActiveTime,
     });
-  }, [formData, timeLeft, timerExpired, elapsedTime, completionPercentage]);
+  }, [formData, timeLeft, timerExpired, elapsedTime, completionPercentage, typingTimer.getActiveTime]);
 
   // Timer effect
   useEffect(() => {
@@ -122,6 +130,8 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
           if (prev <= 1) {
             setIsTimerActive(false);
             setTimerExpired(true);
+            // Stop typing timer when time expires
+            typingTimer.stopTimer();
             return 0;
           }
           return prev - 1;
@@ -134,7 +144,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
         clearInterval(timerRef.current);
       }
     };
-  }, [isTimerActive, timeLeft]);
+  }, [isTimerActive, timeLeft, typingTimer]);
 
   // When user clicks Save Data, stop timer, clear popups, and lock form
   useEffect(() => {
@@ -142,6 +152,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       setIsTimerActive(false);
       setTimeWarningMessage(null);
       setTimerExpired(true);
+      typingTimer.stopTimer();
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -149,7 +160,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     };
     window.addEventListener('timed-test-save-clicked', handleSaveClicked);
     return () => window.removeEventListener('timed-test-save-clicked', handleSaveClicked);
-  }, []);
+  }, [typingTimer]);
 
   const handleInputChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -163,7 +174,26 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       setHasStarted(true);
       setIsTimerActive(true);
       setStartTime(Date.now());
+      typingTimer.startTimer();
     }
+  };
+
+  // Handle key events to track typing activity
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    logKeyDown(e as any);
+    typingTimer.recordKeystroke();
+
+    // Continue typing timer on keystroke if it was paused
+    if (hasStarted && typingTimer.isPaused && !timeWarningMessage) {
+      typingTimer.resumeTimer();
+    }
+  };
+
+  // Handle dismissing time warning
+  const dismissTimeWarning = () => {
+    setTimeWarningMessage(null);
+    // Resume typing timer when warning is dismissed
+    typingTimer.resumeTimer();
   };
 
   return (
@@ -267,7 +297,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       <div className="mb-6 p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
         <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
         <p className="text-sm text-gray-700 mb-3">
-          You have <strong>2 minutes (120 seconds)</strong> to fill out as many fields as possible. 
+          You have <strong>5 minutes (300 seconds)</strong> to fill out as many fields as possible. 
           The timer starts as soon as you begin typing. Answer quickly but naturally!
         </p>
         <div className="bg-white p-3 rounded border border-indigo-200">
@@ -285,7 +315,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
         formData={formData}
         questions={questionSet}
         onInputChange={handleInputChange}
-        onKeyDown={logKeyDown}
+        onKeyDown={handleKeyDown}
         onKeyUp={logKeyUp}
         onBeforeInput={logInputFallback}
         disabled={timerExpired}

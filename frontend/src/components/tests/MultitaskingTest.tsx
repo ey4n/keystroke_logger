@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
+import { useActiveTypingTimer } from '../../hooks/useActiveTypingTimer';
 import { FormData, createInitialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
 import { generateQuestionSet, QuestionSet } from '../../types/questionpool';
@@ -10,6 +11,7 @@ interface MultitaskingTestProps {
     getLogs: () => any[];
     getAnalytics: () => any;
     formData: any;
+    getActiveTypingTime: () => number;
   }) => void;
 }
 
@@ -39,7 +41,7 @@ const PACE = {
   minDelayMs: 8000,      // 8s minimum between challenges
   maxDelayMs: 14000,     // up to 14s
   perChallengeSecs: 10,  // give 10s to answer
-  maxChallenges: 100,     // allow max 10 challenges
+  maxChallenges: 100,     // allow max 100 challenges
 } as const;
 // -----------------------------------------------------------------------
 
@@ -48,7 +50,7 @@ const normalize = (s: string) => s.trim().toLowerCase();
 export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTestProps) {
   // Generate random question set once when component mounts
   const questionSet: QuestionSet = useMemo(() => {
-    return generateQuestionSet(3, 4, 4); // 4 short, 4 direct long, 4 indirect long
+    return generateQuestionSet(3, 4, 4);
   }, []);
 
   // Get all question IDs for form initialization
@@ -80,6 +82,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   const challengesShownRef = useRef(0);
   const [testCompleted, setTestCompleted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isChallengeActiveRef = useRef(false); // NEW: Track if challenge is currently active
 
   const {
     logKeyDown, logKeyUp,
@@ -87,6 +90,8 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     setFieldName, setActiveChallenge,
     clearLogs, getLogs, getAnalytics,
   } = useKeystrokeLogger();
+
+  const typingTimer = useActiveTypingTimer();
 
   // Calculate completion percentage
   const totalFields = allQuestionIds.length;
@@ -106,27 +111,59 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   const baseScore = formComplete ? 100 : 0;
   const score = Math.max(0, baseScore - wrongChallenges * 5);
 
-  // When user clicks "Save to Supabase", stop all challenges immediately
+  // Track when challenges appear/disappear to pause/resume typing timer
+  useEffect(() => {
+    if (currentChallenge) {
+      // Challenge appeared, pause typing timer
+      typingTimer.pauseTimer();
+    } else if (hasStarted && !testCompleted) {
+      // Challenge dismissed and test still active, resume typing timer
+      typingTimer.resumeTimer();
+    }
+  }, [currentChallenge, hasStarted, testCompleted, typingTimer]);
+
+  const stopAllChallenges = useCallback(() => {
+    console.log('🛑 Stopping all challenges...');
+    
+    // Clear next challenge timer
+    if (nextChallengeTimerRef.current) {
+      clearTimeout(nextChallengeTimerRef.current);
+      nextChallengeTimerRef.current = null;
+    }
+    
+    // Clear challenge countdown timer
+    if (challengeTimerRef.current) {
+      clearInterval(challengeTimerRef.current);
+      challengeTimerRef.current = null;
+    }
+    
+    // Dismiss current challenge
+    setCurrentChallenge(null);
+    setActiveChallenge(null);
+    setUserAnswer('');
+    setAnswerError(null);
+    setIsFormDisabled(false);
+    isChallengeActiveRef.current = false;
+  }, []);
+
   useEffect(() => {
     const handleSaveClicked = () => {
+      console.log('💾 Save clicked - stopping test');
       setTestCompleted(true);
-      if (nextChallengeTimerRef.current) {
-        clearTimeout(nextChallengeTimerRef.current);
-        nextChallengeTimerRef.current = null;
-      }
-      if (challengeTimerRef.current) {
-        clearTimeout(challengeTimerRef.current);
-        challengeTimerRef.current = null;
-      }
-      setCurrentChallenge(null);
-      setActiveChallenge(null);
-      setUserAnswer('');
-      setAnswerError(null);
-      setIsFormDisabled(false);
+      typingTimer.stopTimer();
+      stopAllChallenges();
     };
     window.addEventListener('multitasking-test-save-clicked', handleSaveClicked);
     return () => window.removeEventListener('multitasking-test-save-clicked', handleSaveClicked);
-  }, []);
+  }, [typingTimer, stopAllChallenges]);
+
+  // Stop challenges when form is completed
+  useEffect(() => {
+    if (formComplete && !testCompleted) {
+      console.log('✅ Form complete - stopping challenges');
+      stopAllChallenges();
+    }
+  }, [formComplete, testCompleted, stopAllChallenges]);
 
   // Update parent with current data
   useEffect(() => {
@@ -146,9 +183,10 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         score,
         formSnapshot: formData,
         questionSet: questionSet,
-      }
+      },
+      getActiveTypingTime: typingTimer.getActiveTime,
     });
-  }, [formData, completedChallenges, challengeResults, completionPercentage, score]);
+  }, [formData, completedChallenges, challengeResults, completionPercentage, score, typingTimer.getActiveTime]);
 
   // Generate challenges
   const generateChallenge = (): Challenge => {
@@ -157,35 +195,28 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
     if (isMath) {
       const operations = [
-        // Addition/Subtraction with Multiplication
-      { q: '24 + 8 × 3', a: '48' },
-      { q: '40 - 6 × 5', a: '10' },
-      { q: '14 × 2 + 18', a: '46' },
-      { q: '60 - 9 × 4', a: '24' },
-      { q: '19 + 4 × 7', a: '47' },
-      { q: '13 × 3 - 11', a: '28' },
-
-      // Division then Addition/Subtraction
-      { q: '45 ÷ 5 + 14', a: '23' },
-      { q: '60 ÷ 6 - 4', a: '6' },
-      { q: '35 ÷ 7 + 19', a: '24' },
-      { q: '88 ÷ 8 + 7', a: '18' },
-      { q: '54 ÷ 9 + 16', a: '22' },
-      { q: '70 ÷ 7 - 6', a: '4' },
-
-      // Multiplication then Division
-      { q: '3 × 16 ÷ 4', a: '12' },
-      { q: '5 × 14 ÷ 2', a: '35' },
-      { q: '6 × 10 ÷ 5', a: '12' },
-      { q: '8 × 9 ÷ 6', a: '12' },
-      { q: '7 × 8 ÷ 2', a: '28' },
-
-      // Mixed Operations
-      { q: '32 - 20 + 15', a: '27' },
-      { q: '17 + 9 × 4', a: '53' },
-      { q: '72 ÷ 9 + 11', a: '19' },
-      { q: '55 - 6 × 8', a: '7' },
-      { q: '49 ÷ 7 + 13', a: '20' },
+        { q: '24 + 8 × 3', a: '48' },
+        { q: '40 - 6 × 5', a: '10' },
+        { q: '14 × 2 + 18', a: '46' },
+        { q: '60 - 9 × 4', a: '24' },
+        { q: '19 + 4 × 7', a: '47' },
+        { q: '13 × 3 - 11', a: '28' },
+        { q: '45 ÷ 5 + 14', a: '23' },
+        { q: '60 ÷ 6 - 4', a: '6' },
+        { q: '35 ÷ 7 + 19', a: '24' },
+        { q: '88 ÷ 8 + 7', a: '18' },
+        { q: '54 ÷ 9 + 16', a: '22' },
+        { q: '70 ÷ 7 - 6', a: '4' },
+        { q: '3 × 16 ÷ 4', a: '12' },
+        { q: '5 × 14 ÷ 2', a: '35' },
+        { q: '6 × 10 ÷ 5', a: '12' },
+        { q: '8 × 9 ÷ 6', a: '12' },
+        { q: '7 × 8 ÷ 2', a: '28' },
+        { q: '32 - 20 + 15', a: '27' },
+        { q: '17 + 9 × 4', a: '53' },
+        { q: '72 ÷ 9 + 11', a: '19' },
+        { q: '55 - 6 × 8', a: '7' },
+        { q: '49 ÷ 7 + 13', a: '20' },
       ];
       const op = operations[Math.floor(Math.random() * operations.length)];
       return {
@@ -204,140 +235,120 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         { word: 'ORANGE', ink: 'purple', answer: 'Purple' },
         { word: 'GREEN',  ink: 'red',    answer: 'Red' },
         { word: 'YELLOW', ink: 'red',    answer: 'Red' },
-        { word: 'PURPLE', ink: 'red',    answer: 'Red' },
-        { word: 'ORANGE', ink: 'red',    answer: 'Red' },
-        { word: 'RED',    ink: 'blue',   answer: 'Blue' },
-        { word: 'GREEN',  ink: 'blue',   answer: 'Blue' },
-        { word: 'YELLOW', ink: 'blue',   answer: 'Blue' },
-        { word: 'ORANGE', ink: 'blue',   answer: 'Blue' },
         { word: 'RED',    ink: 'green',  answer: 'Green' },
-        { word: 'BLUE',   ink: 'green',  answer: 'Green' },
-        { word: 'PURPLE', ink: 'green',  answer: 'Green' },
-        { word: 'ORANGE', ink: 'green',  answer: 'Green' },
-        { word: 'RED',    ink: 'yellow', answer: 'Yellow' },
         { word: 'BLUE',   ink: 'yellow', answer: 'Yellow' },
-        { word: 'PURPLE', ink: 'yellow', answer: 'Yellow' },
-        { word: 'ORANGE', ink: 'yellow', answer: 'Yellow' },
-        { word: 'RED',    ink: 'purple', answer: 'Purple' },
-        { word: 'BLUE',   ink: 'purple', answer: 'Purple' },
-        { word: 'GREEN',  ink: 'purple', answer: 'Purple' },
-        { word: 'YELLOW', ink: 'purple', answer: 'Purple' },
-        { word: 'RED',    ink: 'orange', answer: 'Orange' },
-        { word: 'BLUE',   ink: 'orange', answer: 'Orange' },
-        { word: 'GREEN',  ink: 'orange', answer: 'Orange' },
-        { word: 'YELLOW', ink: 'orange', answer: 'Orange' },
       ];
-      const combo = stroopCombos[Math.floor(Math.random() * stroopCombos.length)];
+      const chosen = stroopCombos[Math.floor(Math.random() * stroopCombos.length)];
+      const allColors = ['Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple'];
+      const wrongColors = allColors.filter(c => c !== chosen.answer);
+      const shuffled = [
+        chosen.answer,
+        ...wrongColors.sort(() => Math.random() - 0.5).slice(0, 3)
+      ].sort(() => Math.random() - 0.5);
+
       return {
         id: challengeId,
         type: 'stroop',
-        question: 'Select the ink color (not the word):',
-        colorWord: combo.word,
-        inkColor: combo.ink,
-        correctAnswer: combo.answer,
-        options: ['Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple'],
+        question: 'What color is the INK? (Not the word itself)',
+        correctAnswer: chosen.answer,
+        colorWord: chosen.word,
+        inkColor: chosen.ink,
+        options: shuffled,
       };
     }
   };
 
-  // Schedule next challenge
   const scheduleNextChallenge = () => {
-    if (testCompleted || challengesShownRef.current >= PACE.maxChallenges) return;
-
-    const delay = PACE.minDelayMs + Math.random() * (PACE.maxDelayMs - PACE.minDelayMs);
-    nextChallengeTimerRef.current = window.setTimeout(() => {
-      if (testCompleted) return;
-      const challenge = generateChallenge();
-      setCurrentChallenge(challenge);
-      setActiveChallenge(challenge.id);
-      setChallengeTimer(PACE.perChallengeSecs);
-      setChallengeStartTime(Date.now());
-      setAnswerError(null);
-      setIsFormDisabled(true);
-      challengesShownRef.current += 1;
-    }, delay);
-  };
-
-  // Challenge timer countdown (don't run when test is completed)
-  useEffect(() => {
-    if (testCompleted) return;
-    if (currentChallenge && challengeTimer > 0) {
-      challengeTimerRef.current = window.setTimeout(() => {
-        setChallengeTimer(prev => prev - 1);
-      }, 1000);
-    } else if (currentChallenge && challengeTimer === 0) {
-      handleChallengeTimeout();
-    }
-
-    return () => {
-      if (challengeTimerRef.current) clearTimeout(challengeTimerRef.current);
-    };
-  }, [testCompleted, currentChallenge, challengeTimer]);
-
-  const handleChallengeTimeout = () => {
-    if (currentChallenge && challengeStartTime) {
-      // Record timeout result
-      const result: ChallengeResult = {
-        challengeId: currentChallenge.id,
-        type: currentChallenge.type,
-        question: currentChallenge.question,
-        userAnswer: userAnswer || '(no answer)',
-        correctAnswer: currentChallenge.correctAnswer,
-        isCorrect: false,
-        timeToAnswer: Date.now() - challengeStartTime,
-        timedOut: true,
-      };
-      setChallengeResults(prev => [...prev, result]);
-    }
-
-    setAnswerError('⏰ Time expired! Moving on...');
-    setTimeout(() => {
-      setCurrentChallenge(null);
-      setActiveChallenge(null);
-      setUserAnswer('');
-      setAnswerError(null);
-      setIsFormDisabled(false);
-      setChallengeStartTime(null);
-      scheduleNextChallenge();
-    }, 1500);
-  };
-
-const handleChallengeSubmit = () => {
-    if (!currentChallenge || !challengeStartTime || isSubmitting) return;
-    
-    const isCorrect = normalize(userAnswer) === normalize(currentChallenge.correctAnswer);
-    
-    if (!isCorrect) {
-      setIsSubmitting(true); 
-      // Record wrong answer immediately
-      const wrongResult: ChallengeResult = {
-        challengeId: currentChallenge.id,
-        type: currentChallenge.type,
-        question: currentChallenge.question,
-        userAnswer: userAnswer || '(no answer)',
-        correctAnswer: currentChallenge.correctAnswer,
-        isCorrect: false,
-        timeToAnswer: Date.now() - challengeStartTime,
-        timedOut: false, 
-      };
-      setChallengeResults(prev => [...prev, wrongResult]);
-      
-      // Show immediate feedback with correct answer
-      setAnswerError(`❌ Incorrect! The correct answer was: ${currentChallenge.correctAnswer}`);
-      
-      // Close modal and move on after brief display
-      setTimeout(() => {
-        setCurrentChallenge(null);
-        setActiveChallenge(null);
-        setUserAnswer('');
-        setAnswerError(null);
-        setIsFormDisabled(false);
-        setChallengeStartTime(null);
-        scheduleNextChallenge();
-        setIsSubmitting(false); 
-      }, 2000); // Show for 2 seconds
+    // FIXED: Don't schedule if test completed, form complete, max reached, OR challenge already active
+    if (testCompleted || formComplete || challengesShownRef.current >= PACE.maxChallenges || isChallengeActiveRef.current) {
       return;
     }
+    
+    const delayMs = Math.random() * (PACE.maxDelayMs - PACE.minDelayMs) + PACE.minDelayMs;
+    nextChallengeTimerRef.current = window.setTimeout(() => {
+      // FIXED: Double-check before showing challenge
+      if (testCompleted || formComplete || isChallengeActiveRef.current) {
+        return;
+      }
+      
+      const challenge = generateChallenge();
+      isChallengeActiveRef.current = true; // FIXED: Mark challenge as active BEFORE setting state
+      setCurrentChallenge(challenge);
+      setActiveChallenge(challenge.id);
+      setIsFormDisabled(true);
+      setChallengeTimer(PACE.perChallengeSecs);
+      setChallengeStartTime(Date.now());
+      challengesShownRef.current += 1;
+      
+      challengeTimerRef.current = window.setInterval(() => {
+        setChallengeTimer(prev => {
+          if (prev <= 1) {
+            handleChallengeTimeout(challenge);
+            return PACE.perChallengeSecs;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }, delayMs);
+  };
+
+  const handleChallengeTimeout = (challenge: Challenge) => {
+    // FIXED: Only process if this challenge is still the current one
+    if (!isChallengeActiveRef.current) return;
+    
+    if (challengeTimerRef.current) {
+      clearInterval(challengeTimerRef.current);
+      challengeTimerRef.current = null;
+    }
+    
+    const result: ChallengeResult = {
+      challengeId: challenge.id,
+      type: challenge.type,
+      question: challenge.question,
+      userAnswer: '',
+      correctAnswer: challenge.correctAnswer,
+      isCorrect: false,
+      timeToAnswer: PACE.perChallengeSecs * 1000,
+      timedOut: true,
+    };
+    setChallengeResults(prev => [...prev, result]);
+    setCurrentChallenge(null);
+    setActiveChallenge(null);
+    setUserAnswer('');
+    setAnswerError(null);
+    setIsFormDisabled(false);
+    setChallengeStartTime(null);
+    isChallengeActiveRef.current = false; // FIXED: Mark as not active
+    
+    // FIXED: Only schedule next if test is still running
+    if (!testCompleted && !formComplete) {
+      scheduleNextChallenge();
+    }
+  };
+
+  const handleChallengeSubmit = () => {
+    if (!currentChallenge || !challengeStartTime) return;
+    
+    // FIXED: Prevent double submission
+    if (isSubmitting) return;
+    
+    const normalized = normalize(userAnswer);
+    const correctNormalized = normalize(currentChallenge.correctAnswer);
+    
+    if (!normalized) {
+      setAnswerError('Please enter an answer before submitting!');
+      return;
+    }
+    if (normalized !== correctNormalized) {
+      setAnswerError('Incorrect! Try again or wait for timeout.');
+      return;
+    }
+    
+    if (challengeTimerRef.current) {
+      clearInterval(challengeTimerRef.current);
+      challengeTimerRef.current = null;
+    }
+    
     // Record successful result
     setIsSubmitting(true);
     const result: ChallengeResult = {
@@ -359,7 +370,12 @@ const handleChallengeSubmit = () => {
     setAnswerError(null);
     setIsFormDisabled(false);
     setChallengeStartTime(null);
-    scheduleNextChallenge();
+    isChallengeActiveRef.current = false; // FIXED: Mark as not active
+    
+    // FIXED: Only schedule next if test is still running
+    if (!testCompleted && !formComplete) {
+      scheduleNextChallenge();
+    }
     setIsSubmitting(false);
   };
 
@@ -376,6 +392,7 @@ const handleChallengeSubmit = () => {
     
     if (!hasStarted) {
       setHasStarted(true);
+      typingTimer.startTimer();
       scheduleNextChallenge();
     }
   };
@@ -386,6 +403,17 @@ const handleChallengeSubmit = () => {
 
   const handleFieldBlur = () => {
     if (setFieldName) setFieldName(undefined);
+  };
+
+  // Handle key events to track typing activity
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    logKeyDown(e as any);
+    typingTimer.recordKeystroke(); // Record every keystroke
+    
+    // Resume typing if it was paused and no challenge is active
+    if (hasStarted && typingTimer.isPaused && !currentChallenge) {
+      typingTimer.resumeTimer();
+    }
   };
 
   return (
@@ -422,14 +450,27 @@ const handleChallengeSubmit = () => {
       {/* Instructions */}
       <div className="mb-6 p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
         <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
-        <p className="text-sm text-gray-700 mb-2">
-          Fill out the form while handling interruptions! Random challenges will appear that you must solve quickly.
-        </p>
-        <div className="text-xs text-gray-600 space-y-1">
-          <div>• <strong>Math challenges:</strong> Solve in {PACE.perChallengeSecs}s</div>
-          <div>• <strong>Stroop tests:</strong> Select the ink color, not the word</div>
-          <div>• Challenges completed: <strong>{correctChallenges}</strong> (Challenges failed {wrongChallenges})</div>
-        </div>
+        
+        {formComplete ? (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-3">
+            <p className="text-sm font-semibold text-green-800 mb-1">🎉 Form Complete!</p>
+            <p className="text-xs text-green-700">
+              All fields filled! No more challenges will appear. Click "Show All Data" below and then "Save to Supabase" to submit.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-gray-700 mb-2">
+              Fill out the form while handling interruptions! Random challenges will appear that you must solve quickly.
+            </p>
+            <div className="text-xs text-gray-600 space-y-1">
+              <div>• <strong>Math challenges:</strong> Solve in {PACE.perChallengeSecs}s</div>
+              <div>• <strong>Stroop tests:</strong> Select the ink color, not the word</div>
+              <div>• Challenges completed: <strong>{correctChallenges}</strong> (Challenges failed {wrongChallenges})</div>
+            </div>
+          </>
+        )}
+        
         <div className="mt-3 bg-white p-3 rounded border border-purple-200">
           <p className="text-sm font-semibold text-gray-800 mb-1">📊 Scoring System:</p>
           <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside">
@@ -444,7 +485,7 @@ const handleChallengeSubmit = () => {
       </div>
 
       {/* Challenge Modal */}
-      {currentChallenge && (
+      {currentChallenge && !testCompleted && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-2xl p-6 max-w-md w-full mx-4">
             <div className="text-center mb-4">
@@ -478,6 +519,7 @@ const handleChallengeSubmit = () => {
                   }`}
                   placeholder="Type answer"
                   autoFocus
+                  disabled={isSubmitting}
                 />
                 {answerError && (
                   <div className="mt-2 text-sm text-red-600 text-center">{answerError}</div>
@@ -499,11 +541,12 @@ const handleChallengeSubmit = () => {
                     <button
                       key={option}
                       onClick={() => handleOptionClick(option)}
+                      disabled={isSubmitting}
                       className={`p-3 rounded-lg font-semibold text-gray-800 transition-colors ${
                         userAnswer === option
                           ? 'bg-indigo-600 text-white ring-2 ring-indigo-400'
                           : 'bg-indigo-100 hover:bg-indigo-200'
-                      }`}
+                      } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {option}
                     </button>
@@ -517,9 +560,12 @@ const handleChallengeSubmit = () => {
 
             <button
               onClick={handleChallengeSubmit}
-              className="w-full mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+              disabled={isSubmitting}
+              className={`w-full mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium ${
+                isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              Submit & Continue
+              {isSubmitting ? 'Submitting...' : 'Submit & Continue'}
             </button>
           </div>
         </div>
@@ -530,7 +576,7 @@ const handleChallengeSubmit = () => {
         formData={formData}
         questions={questionSet}
         onInputChange={handleInputChange}
-        onKeyDown={logKeyDown}
+        onKeyDown={handleKeyDown}
         onKeyUp={logKeyUp}
         onBeforeInput={logInputFallback}
         onFieldFocus={handleFieldFocus}

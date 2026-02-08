@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
+import { useActiveTypingTimer } from '../../hooks/useActiveTypingTimer';
 import { FormData, createInitialFormData } from '../../types/formdata';
 import { ShortInputField } from '../forms/FormFields';
 import { generateQuestionSet, QuestionSet, Question, TranscriptionQuestion } from '../../types/questionpool';
@@ -14,6 +15,7 @@ interface FreeTypingTestProps {
     getLogs: () => any[];
     getAnalytics: () => any;
     formData: any;
+    getActiveTypingTime: () => number; 
   }) => void;
   onFlowComplete?: () => void;
 }
@@ -44,6 +46,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
   type Step = 'personal' | number | 'transcription' | 'complete';
   const [step, setStep] = useState<Step>('personal');
   const [transcriptionExpanded, setTranscriptionExpanded] = useState(true);
+  const [hasStartedTyping, setHasStartedTyping] = useState(false);
 
   const {
     logKeyDown,
@@ -54,18 +57,39 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
     setFieldName,
   } = useKeystrokeLogger(sessionId);
 
+  // Initialize active typing timer
+  const typingTimer = useActiveTypingTimer();
+
   useEffect(() => {
     onTestDataUpdate({
       getLogs,
       getAnalytics,
       formData: { ...formData, questionSet },
+      getActiveTypingTime: typingTimer.getActiveTime,
     });
-  }, [formData, getLogs, getAnalytics, onTestDataUpdate, questionSet]);
+  }, [formData, getLogs, getAnalytics, onTestDataUpdate, questionSet, typingTimer.getActiveTime]);
 
   const handleInputChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    
+    // Start timer on first keystroke
+    if (!hasStartedTyping) {
+      setHasStartedTyping(true);
+      typingTimer.startTimer();
+    }
+  };
+
+  // Track keydown events to update timer on last keystroke
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    logKeyDown(e as any);
+    typingTimer.recordKeystroke();
+  
+    // Restart/continue timer on any keystroke (in case it was paused)
+    if (hasStartedTyping && !typingTimer.isActive) {
+      typingTimer.startTimer();
+    }
   };
 
   const handleFieldFocus = (fieldName: keyof FormData) => {
@@ -87,6 +111,8 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
     }
     if (step === 'transcription') {
       setStep('complete');
+      // Stop timer when test is complete
+      typingTimer.stopTimer();
       onFlowComplete?.();
     }
   };
@@ -106,7 +132,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
     }
   };
 
-  // —— Personal details: single screen ——
+  // — Personal details: single screen —
   if (step === 'personal') {
     const allShort = [...questionSet.requiredShort, ...questionSet.short];
     const totalFields = allQuestionIds.length;
@@ -137,7 +163,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
               label={q.label}
               value={formData[q.id] || ''}
               onChange={handleInputChange(q.id)}
-              onKeyDown={logKeyDown as any}
+              onKeyDown={handleKeyDown}
               onKeyUp={logKeyUp as any}
               onBeforeInput={logInputFallback}
               onFocus={() => handleFieldFocus(q.id)}
@@ -161,7 +187,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
     );
   }
 
-  // —— One long question per screen ——
+  // — One long question per screen —
   if (typeof step === 'number' && allLongQuestions[step]) {
     const q = allLongQuestions[step];
     const value = formData[q.id] || '';
@@ -184,7 +210,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
           <textarea
             value={value}
             onChange={handleInputChange(q.id)}
-            onKeyDown={logKeyDown as any}
+            onKeyDown={handleKeyDown}
             onKeyUp={logKeyUp as any}
             onBeforeInput={logInputFallback ? (e) => {
               const n = e.nativeEvent as InputEvent;
@@ -227,7 +253,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
     );
   }
 
-  // —— Transcription: single screen ——
+  // — Transcription: single screen —
   if (step === 'transcription' && questionSet.transcription.length > 0) {
     const t = questionSet.transcription[0] as TranscriptionQuestion;
     const value = formData[t.id] || '';
@@ -267,7 +293,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
           <textarea
             value={value}
             onChange={handleInputChange(t.id)}
-            onKeyDown={logKeyDown as any}
+            onKeyDown={handleKeyDown}
             onKeyUp={logKeyUp as any}
             onBeforeInput={logInputFallback ? (e) => {
               const n = e.nativeEvent as InputEvent;
@@ -309,7 +335,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
     );
   }
 
-  // —— Complete: show message, data panel is shown by parent ——
+  // — Complete: show message, data panel is shown by parent —
   if (step === 'complete') {
     return (
       <div className="min-h-[280px] flex flex-col items-center justify-center text-center py-12 px-4 bg-white rounded-xl border border-gray-200">
