@@ -22,6 +22,7 @@ interface ShortInputFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onKeyUp: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onBeforeInput?: (ev: { data?: string | null; inputType?: string }) => void;
   onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   disabled?: boolean;
@@ -35,6 +36,7 @@ export const ShortInputField = ({
   onChange,
   onKeyDown,
   onKeyUp,
+  onBeforeInput,
   onFocus,
   onBlur,
   disabled = false,
@@ -123,6 +125,10 @@ export const ShortInputField = ({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         onKeyUp={onKeyUp}
+        onBeforeInput={onBeforeInput ? (e) => {
+          const n = e.nativeEvent as InputEvent;
+          onBeforeInput({ data: n.data, inputType: n.inputType });
+        } : undefined}
         onFocus={onFocus}
         onBlur={onBlur}
         disabled={disabled}
@@ -144,6 +150,7 @@ interface LongTextAreaProps {
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onBeforeInput?: (ev: { data?: string | null; inputType?: string }) => void;
   onFocus?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLTextAreaElement>) => void;
   onPaste?: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
@@ -158,6 +165,7 @@ export const LongTextArea = ({
   onChange,
   onKeyDown,
   onKeyUp,
+  onBeforeInput,
   onFocus,
   onBlur,
   onPaste,
@@ -175,6 +183,10 @@ export const LongTextArea = ({
         onChange={onChange}
         onKeyDown={onKeyDown}
         onKeyUp={onKeyUp}
+        onBeforeInput={onBeforeInput ? (e) => {
+          const n = e.nativeEvent as InputEvent;
+          onBeforeInput({ data: n.data, inputType: n.inputType });
+        } : undefined}
         onFocus={onFocus}
         onBlur={onBlur}
         onPaste={onPaste}

@@ -89,6 +89,54 @@ export function useKeystrokeLogger(externalSessionId?: string) {
     return event;
   }, []);
 
+  /**
+   * Mobile / virtual keyboard fallback: many phones don't fire keydown/keyup for the soft keyboard.
+   * Only runs on mobile (touch + narrow viewport) so desktop keystroke monitoring is unchanged.
+   * Use from onBeforeInput: when a single character is inserted we log a synthetic keydown + keyup.
+   */
+  const logInputFallback = useCallback((ev: { data?: string | null; inputType?: string }) => {
+    if (typeof window === 'undefined') return;
+    // Only use fallback on mobile; desktop keeps using keydown/keyup only
+    const isMobile =
+      navigator.maxTouchPoints > 0 &&
+      window.innerWidth <= 1024;
+    if (!isMobile) return;
+
+    const inputType = ev.inputType || '';
+    const data = ev.data;
+    if (inputType !== 'insertText' || data == null || data.length === 0) return;
+    // Only log single-character inserts (one key at a time); paste may have many chars
+    if (data.length > 1) return;
+
+    const now = Date.now();
+    if (keystrokeData.current.length === 0) {
+      startTime.current = now;
+    }
+    const elapsed = startTime.current ? now - startTime.current : 0;
+    const base = {
+      sessionId: sessionIdRef.current,
+      fieldName: currentFieldRef.current,
+      challengeId: activeChallengeIdRef.current,
+      elapsedSinceStart: elapsed,
+      deviceInfo: deviceInfoRef.current,
+    };
+
+    keystrokeData.current.push({
+      key: data,
+      eventType: 'keydown',
+      timestamp: now,
+      code: 'VirtualKey',
+      ...base,
+    });
+    keystrokeData.current.push({
+      key: data,
+      eventType: 'keyup',
+      timestamp: now + 1,
+      code: 'VirtualKey',
+      ...base,
+    });
+  }, []);
+
   const clearLogs = useCallback(() => {
     keystrokeData.current = [];
     startTime.current = null;
@@ -156,6 +204,8 @@ export function useKeystrokeLogger(externalSessionId?: string) {
     // logging
     logKeyDown,
     logKeyUp,
+    /** Call from onBeforeInput on inputs/textareas to capture typing on mobile (virtual keyboard). */
+    logInputFallback,
 
     // session / context controls (NEW)
     setFieldName,

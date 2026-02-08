@@ -48,6 +48,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
   const {
     logKeyDown,
     logKeyUp,
+    logInputFallback,
     getLogs,
     getAnalytics,
     setFieldName,
@@ -138,6 +139,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
               onChange={handleInputChange(q.id)}
               onKeyDown={logKeyDown as any}
               onKeyUp={logKeyUp as any}
+              onBeforeInput={logInputFallback}
               onFocus={() => handleFieldFocus(q.id)}
               disabled={false}
             />
@@ -184,6 +186,10 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
             onChange={handleInputChange(q.id)}
             onKeyDown={logKeyDown as any}
             onKeyUp={logKeyUp as any}
+            onBeforeInput={logInputFallback ? (e) => {
+              const n = e.nativeEvent as InputEvent;
+              logInputFallback({ data: n.data, inputType: n.inputType });
+            } : undefined}
             onFocus={() => handleFieldFocus(q.id)}
             maxLength={LONG_QUESTION_MAX_CHARS}
             placeholder="Start typing here..."
@@ -263,6 +269,10 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
             onChange={handleInputChange(t.id)}
             onKeyDown={logKeyDown as any}
             onKeyUp={logKeyUp as any}
+            onBeforeInput={logInputFallback ? (e) => {
+              const n = e.nativeEvent as InputEvent;
+              logInputFallback({ data: n.data, inputType: n.inputType });
+            } : undefined}
             onFocus={() => handleFieldFocus(t.id)}
             placeholder="Type the paragraph here..."
             rows={6}

@@ -46,6 +46,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const { 
     logKeyDown, 
     logKeyUp, 
+    logInputFallback,
     clearLogs, 
     getLogs, 
     getAnalytics,
@@ -286,6 +287,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}
+        onBeforeInput={logInputFallback}
         disabled={timerExpired}
         onFieldFocus={handleFieldFocus} 
         className="max-h-[500px] overflow-y-auto pr-2 mb-6"

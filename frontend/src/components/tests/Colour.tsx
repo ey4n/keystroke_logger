@@ -54,6 +54,7 @@ export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
 
   const {
     logKeyDown, logKeyUp,
+    logInputFallback,
     setFieldName,
     clearLogs, getLogs, getAnalytics,
   } = useKeystrokeLogger(sessionId);
@@ -181,6 +182,7 @@ export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}
+        onBeforeInput={logInputFallback}
         onFieldFocus={handleFieldFocus}
         onFieldBlur={handleFieldBlur}
         disabled={false}

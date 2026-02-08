@@ -83,6 +83,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
 
   const {
     logKeyDown, logKeyUp,
+    logInputFallback,
     setFieldName, setActiveChallenge,
     clearLogs, getLogs, getAnalytics,
   } = useKeystrokeLogger();
@@ -531,6 +532,7 @@ const handleChallengeSubmit = () => {
         onInputChange={handleInputChange}
         onKeyDown={logKeyDown}
         onKeyUp={logKeyUp}
+        onBeforeInput={logInputFallback}
         onFieldFocus={handleFieldFocus}
         onFieldBlur={handleFieldBlur}
         disabled={isFormDisabled}

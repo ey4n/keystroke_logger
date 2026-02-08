@@ -17,6 +17,7 @@ export interface DataCollectionFormProps {
   onInputChange: (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onKeyUp: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onBeforeInput?: (ev: { data?: string | null; inputType?: string }) => void;
   onFieldFocus?: (fieldName: keyof FormData) => void;
   onFieldBlur?: () => void;
   disabled?: boolean;
@@ -29,6 +30,7 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
   onInputChange,
   onKeyDown,
   onKeyUp,
+  onBeforeInput,
   onFieldFocus,
   onFieldBlur,
   disabled = false,
@@ -58,6 +60,7 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
               onChange={onInputChange(question.id)}
               onKeyDown={onKeyDown as any}
               onKeyUp={onKeyUp as any}
+              onBeforeInput={onBeforeInput}
               onFocus={handleFocus(question.id)}
               onBlur={handleBlur}
               disabled={disabled}
@@ -72,6 +75,7 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
               onChange={onInputChange(question.id)}
               onKeyDown={onKeyDown as any}
               onKeyUp={onKeyUp as any}
+              onBeforeInput={onBeforeInput}
               onFocus={handleFocus(question.id)}
               onBlur={handleBlur}
               disabled={disabled}
@@ -91,6 +95,7 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
               onChange={onInputChange(question.id)}
               onKeyDown={onKeyDown as any}
               onKeyUp={onKeyUp as any}
+              onBeforeInput={onBeforeInput}
               onFocus={handleFocus(question.id)}
               onBlur={handleBlur}
               disabled={disabled}
@@ -110,6 +115,7 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
               onChange={onInputChange(question.id)}
               onKeyDown={onKeyDown as any}
               onKeyUp={onKeyUp as any}
+              onBeforeInput={onBeforeInput}
               onFocus={handleFocus(question.id)}
               onBlur={handleBlur}
               disabled={disabled}
@@ -153,6 +159,7 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
                 onChange={onInputChange(transcriptionQ.id)}
                 onKeyDown={onKeyDown as any}
                 onKeyUp={onKeyUp as any}
+                onBeforeInput={onBeforeInput}
                 onFocus={handleFocus(transcriptionQ.id)}
                 onBlur={handleBlur}
                 onPaste={(e) => e.preventDefault()}
