@@ -141,6 +141,7 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
             <Free
               sessionId={sessionId}
               onTestDataUpdate={handleTestDataUpdate}
+              onFlowComplete={() => setShowData(true)}
             />
           )}
           

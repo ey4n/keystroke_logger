@@ -45,7 +45,7 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
   };
 
   return (
-    <div className={className}>
+    <div className={`bg-white ${className}`}>
       {/* Personal Details Section */}
       {(questions.requiredShort.length > 0 || questions.short.length > 0) && (
         <FormSection title="Personal Details">
@@ -124,11 +124,11 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
           {questions.transcription.map((transcriptionQ) => (
             <div key={transcriptionQ.id} className="space-y-4">
               {/* Sticky, collapsible reference paragraph */}
-              <div className="sticky top-0 z-10 -mx-1 px-1 bg-gray-50 sm:bg-blue-50/95 backdrop-blur-sm rounded-lg shadow-sm border border-blue-200">
+              <div className="sticky top-0 z-10 -mx-1 px-1 bg-gray-50 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200">
                 <button
                   type="button"
                   onClick={() => setTranscriptionExpanded(!transcriptionExpanded)}
-                  className="w-full flex items-center justify-between p-3 text-left hover:bg-blue-100/50 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-100 rounded-xl transition-colors"
                 >
                   <span className="text-sm font-semibold text-gray-800">
                     {transcriptionExpanded ? '▼ Reference paragraph (click to collapse)' : '▶ Reference paragraph (click to show)'}
@@ -139,7 +139,7 @@ export const DataCollectionForm: React.FC<DataCollectionFormProps> = ({
                     <p className="text-sm text-gray-700 mb-3">
                       {transcriptionQ.instructions}
                     </p>
-                    <div className="bg-white p-4 rounded border border-blue-300">
+                    <div className="bg-white p-4 rounded-xl border border-gray-200">
                       <p className="text-sm sm:text-base text-gray-800 leading-relaxed font-mono">
                         "{transcriptionQ.paragraph}"
                       </p>

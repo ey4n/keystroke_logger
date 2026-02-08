@@ -6,11 +6,11 @@ interface FormSectionProps {
 }
 
 export const FormSection = ({ title, children }: FormSectionProps) => (
-  <div className="mb-6">
-    <h3 className="text-md font-semibold text-gray-700 mb-3">
+  <div className="mb-10">
+    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-5">
       {title}
     </h3>
-    <div className="space-y-4">
+    <div className="space-y-8">
       {children}
     </div>
   </div>
@@ -109,10 +109,13 @@ export const ShortInputField = ({
   };
 
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+      <label className="block text-base font-semibold text-gray-900 mb-1">
         {label}
       </label>
+      {isAgeField && (
+        <p className="text-xs text-gray-500 mb-3">Digits only</p>
+      )}
       <input
         type={inputType}
         inputMode={isAgeField ? 'numeric' : undefined}
@@ -124,10 +127,11 @@ export const ShortInputField = ({
         onBlur={onBlur}
         disabled={disabled}
         maxLength={isAgeField ? 3 : undefined}
-        className={`w-full p-2 border-2 rounded-lg focus:ring-2 outline-none transition-all ${
-          disabled 
-            ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
-            : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
+        placeholder={isAgeField ? 'e.g. 24' : undefined}
+        className={`w-full min-h-[52px] px-4 py-3 text-base border rounded-xl outline-none transition-all ${
+          disabled
+            ? 'bg-gray-100 border-gray-200 cursor-not-allowed'
+            : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
         }`}
       />
     </div>
@@ -162,8 +166,8 @@ export const LongTextArea = ({
   rows = 3
 }: LongTextAreaProps) => {
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+      <label className="block text-base font-semibold text-gray-900 mb-1">
         {label}
       </label>
       <textarea
@@ -177,10 +181,11 @@ export const LongTextArea = ({
         onCopy={onCopy}
         disabled={disabled}
         rows={rows}
-        className={`w-full p-2 border-2 rounded-lg focus:ring-2 outline-none transition-all resize-none ${
-          disabled 
-            ? 'bg-gray-100 border-gray-300 cursor-not-allowed' 
-            : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-200'
+        placeholder="Type naturally here..."
+        className={`w-full min-h-[120px] px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-purple-500 outline-none transition-all resize-y ${
+          disabled
+            ? 'bg-gray-100 border-gray-200 cursor-not-allowed'
+            : 'border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-200'
         }`}
       />
     </div>
