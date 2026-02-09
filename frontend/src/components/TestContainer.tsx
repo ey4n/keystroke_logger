@@ -25,6 +25,7 @@ interface TestContainerProps {
 export default function TestContainer({ consentData, sessionId: propSessionId }: TestContainerProps = {}) {
   const [currentTest, setCurrentTest] = useState<TestType>('free');
   const [showData, setShowData] = useState(false);
+  const [postSurveyVisible, setPostSurveyVisible] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const [dataVersion, setDataVersion] = useState(0);
   
@@ -68,12 +69,15 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
   const handleShowData = () => {
     setShowData(prev => {
       const next = !prev;
-
-      if (next && currentTest === 'timed') {
-        setTimeout(() => window.dispatchEvent(new CustomEvent('timed-test-save-clicked')), 0);
-      }
-      if (next && currentTest === 'multitasking') {
-        setTimeout(() => window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked')), 0);
+      if (next) {
+        // When ending test: stop timer/challenges and show full-screen post-survey
+        if (currentTest === 'timed') {
+          window.dispatchEvent(new CustomEvent('timed-test-save-clicked'));
+        }
+        if (currentTest === 'multitasking') {
+          window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
+        }
+        setPostSurveyVisible(true); // blank screen with post-survey card only
       }
 
       return next;
@@ -194,19 +198,22 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
           </button>
         </div>
 
-        {/* Data Display */}
+        {/* Data Display: full-screen overlay when post-survey is shown, otherwise in-flow below */}
         {showData && testDataRef && (
-          <KeystrokeDataDisplay
-            key={`${currentTest}-${sessionId}-${dataVersion}`}
-            events={testDataRef.getLogs()}
-            analytics={testDataRef.getAnalytics()}
-            onExportJSON={testDataRef.exportAsJSON}
-            onExportCSV={testDataRef.exportAsCSV}
-            testType={currentTest}
-            sessionId={sessionId}
-            formData={testDataRef.formData}
-            getActiveTypingTime={testDataRef.getActiveTypingTime} 
-          />
+          <div className={postSurveyVisible ? 'fixed inset-0 z-50 bg-gray-100 flex items-center justify-center p-4' : ''}>
+            <KeystrokeDataDisplay
+              key={`${currentTest}-${sessionId}-${dataVersion}`}
+              events={testDataRef.getLogs()}
+              analytics={testDataRef.getAnalytics()}
+              onExportJSON={testDataRef.exportAsJSON}
+              onExportCSV={testDataRef.exportAsCSV}
+              testType={currentTest}
+              sessionId={sessionId}
+              formData={testDataRef.formData}
+              getActiveTypingTime={testDataRef.getActiveTypingTime}
+              onPostSurveyVisible={setPostSurveyVisible}
+            />
+          </div>
         )}
 
         {/* Footer Info - Improved */}

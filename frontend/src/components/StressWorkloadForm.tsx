@@ -3,20 +3,29 @@
 import React, { useState } from 'react';
 
 export interface StressWorkloadData {
-  stressLevel: number; // 1-10
-  mentalDemand: number; // 1-10
-  rushedFeeling: number; // 1-10
-  concentrationDifficulty: number; // 1-10
+  stressLevel: number;
+  mentalDemand: number;
+  rushedFeeling: number;
+  concentrationDifficulty: number;
   moreStressedThanBaseline: 'Yes' | 'No' | 'Unsure';
-  discomfortOrDistraction?: string; // optional free text
+  discomfortOrDistraction?: string;
 }
 
 interface StressWorkloadFormProps {
   onSubmit: (data: StressWorkloadData) => void;
   onCancel?: () => void;
+  /** When 'standalone', full-page gray + centered card (like Baseline). When 'modal', overlay + card. */
+  variant?: 'modal' | 'standalone';
 }
 
-export function StressWorkloadForm({ onSubmit, onCancel }: StressWorkloadFormProps) {
+const selectStyle = {
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+  backgroundRepeat: 'no-repeat' as const,
+  backgroundPosition: 'right 0.75rem center',
+  backgroundSize: '1.25rem',
+};
+
+export function StressWorkloadForm({ onSubmit, onCancel, variant = 'modal' }: StressWorkloadFormProps) {
   const [stressLevel, setStressLevel] = useState<number | null>(null);
   const [mentalDemand, setMentalDemand] = useState<number | null>(null);
   const [rushedFeeling, setRushedFeeling] = useState<number | null>(null);
@@ -26,13 +35,10 @@ export function StressWorkloadForm({ onSubmit, onCancel }: StressWorkloadFormPro
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate all fields are selected
     if (stressLevel === null || mentalDemand === null || rushedFeeling === null || concentrationDifficulty === null) {
       alert('Please rate all questions before submitting.');
       return;
     }
-
     onSubmit({
       stressLevel,
       mentalDemand,
@@ -43,110 +49,144 @@ export function StressWorkloadForm({ onSubmit, onCancel }: StressWorkloadFormPro
     });
   };
 
-  const RatingScale = ({ 
-    label, 
-    value, 
-    onChange 
-  }: { 
-    label: string; 
-    value: number | null; 
+  // Same scale style as Baseline: grid of 10, rounded-lg, purple when selected, gray when not
+  const RatingScale = ({
+    label,
+    value,
+    onChange,
+    leftLabel = '1 (Not at all)',
+    rightLabel = '10 (Extremely)',
+  }: {
+    label: string;
+    value: number | null;
     onChange: (value: number) => void;
-  }) => {
-    return (
-      <div className="space-y-3">
-        <label className="block text-sm font-medium text-gray-700">{label}</label>
-        <div className="flex gap-2 flex-wrap">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
-            <button
-              key={rating}
-              type="button"
-              onClick={() => onChange(rating)}
-              className={`
-                flex-1 min-h-[48px] min-w-[44px] py-3 px-2 rounded-lg font-semibold text-base sm:text-sm
-                transition-all duration-200 transform hover:scale-105 active:scale-95 touch-manipulation
-                ${value === rating
-                  ? 'bg-indigo-600 text-white shadow-lg ring-2 ring-indigo-300 ring-offset-2'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-gray-300'
-                }
-              `}
-            >
-              {rating}
-            </button>
-          ))}
+    leftLabel?: string;
+    rightLabel?: string;
+  }) => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-3">{label}</label>
+      <div className="grid grid-cols-10 gap-2">
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            className={`aspect-square min-h-[44px] w-full rounded-lg font-semibold text-base transition-all duration-200 ${
+              value === n
+                ? 'bg-purple-600 text-white shadow-lg ring-2 ring-purple-300 ring-offset-2'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-gray-300'
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 px-1 mt-2">
+        <span>{leftLabel}</span>
+        <span>{rightLabel}</span>
+      </div>
+    </div>
+  );
+
+  const card = (
+    <div className="relative max-w-lg w-full bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+      <div className="pt-8 pb-2 px-6">
+        <h1 className="text-2xl font-bold text-gray-900">Post-Task Stress & Workload</h1>
+        <p className="text-gray-500 text-sm mt-1">A few quick questions about your experience during the task</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-6">
+        <RatingScale
+          label="How stressed did you feel during the previous task? *"
+          value={stressLevel}
+          onChange={setStressLevel}
+          leftLabel="1 (Not at all stressed)"
+          rightLabel="10 (Extremely stressed)"
+        />
+        <RatingScale
+          label="How mentally demanding was the task? *"
+          value={mentalDemand}
+          onChange={setMentalDemand}
+        />
+        <RatingScale
+          label="How rushed did you feel? *"
+          value={rushedFeeling}
+          onChange={setRushedFeeling}
+        />
+        <RatingScale
+          label="How difficult was it to concentrate? *"
+          value={concentrationDifficulty}
+          onChange={setConcentrationDifficulty}
+        />
+
+        {/* Optional – same uppercase label style as Baseline */}
+        <div className="pt-2 border-t border-gray-100 space-y-3">
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+            More stressed than at baseline?
+          </label>
+          <select
+            value={moreStressedThanBaseline}
+            onChange={(e) => setMoreStressedThanBaseline(e.target.value as 'Yes' | 'No' | 'Unsure')}
+            className="w-full min-h-[48px] pl-3 pr-10 py-2.5 text-base border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none cursor-pointer"
+            style={selectStyle}
+          >
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+            <option value="Unsure">Unsure</option>
+          </select>
+          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+            Any discomfort or distraction? (optional)
+          </label>
+          <input
+            type="text"
+            value={discomfortOrDistraction}
+            onChange={(e) => setDiscomfortOrDistraction(e.target.value)}
+            placeholder="e.g. noise, fatigue"
+            className="w-full min-h-[48px] px-4 py-2.5 text-base border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+          />
         </div>
-        <div className="flex justify-between text-xs text-gray-500 px-1">
-          <span>1 (Not at all)</span>
-          <span>10 (Extremely)</span>
-        </div>
-        {value !== null && (
-          <div className="text-center">
-            <span className="text-sm font-semibold text-indigo-600">Selected: {value}</span>
-          </div>
+
+        {onCancel && variant === 'modal' && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="w-full py-3 px-4 bg-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
         )}
+        <button
+          type="submit"
+          className="w-full py-4 px-4 bg-purple-600 text-white font-semibold rounded-xl hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+        >
+          Submit & Continue
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </button>
+
+        <p className="text-center text-xs text-gray-500 flex items-center justify-center gap-1.5">
+          <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+          </svg>
+          End-to-end encrypted research data.
+        </p>
+      </form>
+    </div>
+  );
+
+  if (variant === 'standalone') {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        {card}
       </div>
     );
-  };
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Post-Task Stress & Workload Self-Report
-          </h2>
-          <p className="text-gray-600 text-sm mb-6">
-            Please rate your experience during the previous task using the scale below (1-10).
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Stress Level */}
-            <RatingScale
-              label="How stressed did you feel during the previous task?"
-              value={stressLevel}
-              onChange={setStressLevel}
-            />
-
-            {/* Mental Demand */}
-            <RatingScale
-              label="How mentally demanding was the task?"
-              value={mentalDemand}
-              onChange={setMentalDemand}
-            />
-
-            {/* Rushed Feeling */}
-            <RatingScale
-              label="How rushed did you feel?"
-              value={rushedFeeling}
-              onChange={setRushedFeeling}
-            />
-
-            {/* Concentration Difficulty */}
-            <RatingScale
-              label="How difficult was it to concentrate?"
-              value={concentrationDifficulty}
-              onChange={setConcentrationDifficulty}
-            />
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
-              {onCancel && (
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-              )}
-              <button
-                type="submit"
-                className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-              >
-                Submit & Continue
-              </button>
-            </div>
-          </form>
-        </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="max-h-[90vh] overflow-y-auto w-full flex items-center justify-center">
+        {card}
       </div>
     </div>
   );
