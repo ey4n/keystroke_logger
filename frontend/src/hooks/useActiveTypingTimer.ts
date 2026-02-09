@@ -5,7 +5,7 @@ export interface ActiveTypingTimer {
   pauseTimer: () => void;
   resumeTimer: () => void;
   stopTimer: () => void;
-  recordKeystroke: () => void; // NEW: Call this on every keystroke
+  recordKeystroke: () => void; 
   getActiveTime: () => number;
   isActive: boolean;
   isPaused: boolean;

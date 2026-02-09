@@ -67,7 +67,7 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
   };
 
   const handleShowData = () => {
-    setShowData((prev) => {
+    setShowData(prev => {
       const next = !prev;
       if (next) {
         // When ending test: stop timer/challenges and show full-screen post-survey
@@ -79,6 +79,7 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
         }
         setPostSurveyVisible(true); // blank screen with post-survey card only
       }
+
       return next;
     });
   };

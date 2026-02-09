@@ -7,7 +7,7 @@ import { FormData, createInitialFormData } from '../../types/formdata';
 import { ShortInputField } from '../forms/FormFields';
 import { generateQuestionSet, QuestionSet, Question, TranscriptionQuestion } from '../../types/questionpool';
 
-const LONG_QUESTION_MAX_CHARS = 500;
+const LONG_QUESTION_MAX_CHARS = 150;
 
 interface TimedTestProps {
   sessionId: string;
@@ -170,7 +170,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     };
     window.addEventListener('timed-test-save-clicked', handleSaveClicked);
     return () => window.removeEventListener('timed-test-save-clicked', handleSaveClicked);
-  }, [typingTimer]);
+  }, []);
 
   const handleInputChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
