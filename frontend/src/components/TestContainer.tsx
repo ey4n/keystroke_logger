@@ -67,22 +67,22 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
   };
 
   const handleShowData = () => {
-    setShowData(prev => {
-      const next = !prev;
-      if (next) {
-        // When ending test: stop timer/challenges and show full-screen post-survey
-        if (currentTest === 'timed') {
-          window.dispatchEvent(new CustomEvent('timed-test-save-clicked'));
-        }
-        if (currentTest === 'multitasking') {
-          window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
-        }
-        setPostSurveyVisible(true); // blank screen with post-survey card only
-      }
-
-      return next;
-    });
+    setShowData(prev => !prev);
   };
+
+
+  useEffect(() => {
+    if (!showData) return; 
+
+    if (currentTest === 'timed') {
+      window.dispatchEvent(new CustomEvent('timed-test-save-clicked'));
+    }
+    if (currentTest === 'multitasking') {
+      window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
+    }
+
+    setPostSurveyVisible(true);
+  }, [showData, currentTest]);
 
   // replace your clear handler with:
   const handleClearData = () => {

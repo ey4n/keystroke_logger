@@ -47,7 +47,7 @@ export const QUESTION_POOLS = {
     { id: 'unexpectedChanges', label: 'Describe how you typically respond when your plans change unexpectedly.', type: 'indirect-long', category: 'cognitive' },
     { id: 'recentLearning', label: 'Describe something you learned recently that you found useful.', type: 'indirect-long', category: 'cognitive' },
     { id: 'decisionMaking', label: 'Explain how you usually make decisions when choosing between options.', type: 'indirect-long', category: 'cognitive' },
-    { id: 'explainingTasks', label: 'Describe how you would explain a simple task or process to someone unfamiliar with it.', type: 'indirect-long', category: 'cognitive' },
+    { id: 'explainingTasks', label: 'Describe how you would explain a process or task to someone unfamiliar with it.', type: 'indirect-long', category: 'cognitive' },
     { id: 'problemSolving', label: 'Describe your approach when facing a challenging problem.', type: 'indirect-long', category: 'cognitive' },
     { id: 'workLifeBalance', label: 'How do you maintain balance between work and personal life?', type: 'indirect-long', category: 'cognitive' },
     { id: 'conflictResolution', label: 'Describe how you handle disagreements or conflicts with others.', type: 'indirect-long', category: 'cognitive' },
