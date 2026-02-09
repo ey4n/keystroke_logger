@@ -36,7 +36,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     ];
   }, [questionSet]);
 
-  const TOTAL_SECONDS = 300;
+  const TOTAL_SECONDS = 240;
   const allLongQuestions: Question[] = useMemo(() => {
     return [...questionSet.directLong, ...questionSet.indirectLong];
   }, [questionSet]);
