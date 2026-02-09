@@ -66,15 +66,16 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
   };
 
   const handleShowData = () => {
-    setShowData((prev) => {
+    setShowData(prev => {
       const next = !prev;
-      // When ending test (showing data), stop timer/challenges so time ends
+
       if (next && currentTest === 'timed') {
-        window.dispatchEvent(new CustomEvent('timed-test-save-clicked'));
+        setTimeout(() => window.dispatchEvent(new CustomEvent('timed-test-save-clicked')), 0);
       }
       if (next && currentTest === 'multitasking') {
-        window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
+        setTimeout(() => window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked')), 0);
       }
+
       return next;
     });
   };

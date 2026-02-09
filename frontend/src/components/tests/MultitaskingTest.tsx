@@ -5,7 +5,7 @@ import { FormData, createInitialFormData } from '../../types/formdata';
 import { ShortInputField } from '../forms/FormFields';
 import { generateQuestionSet, QuestionSet, Question, TranscriptionQuestion } from '../../types/questionpool';
 
-const LONG_QUESTION_MAX_CHARS = 500;
+const LONG_QUESTION_MAX_CHARS = 150;
 
 interface MultitaskingTestProps {
   sessionId: string;

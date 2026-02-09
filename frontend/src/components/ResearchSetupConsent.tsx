@@ -97,7 +97,7 @@ export function ResearchSetupConsent({ onContinue }: ResearchSetupConsentProps) 
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Project info</span>
             </div>
             <p className="text-gray-600 text-sm leading-relaxed">
-              This academic study aims to analyse behavioral patterns through keystroke dynamics. Your session will last approximately 5 minutes.
+              This academic study aims to analyse stress through keystroke dynamics. Your session will last approximately 15 minutes.
             </p>
           </div>
 
@@ -215,7 +215,7 @@ export function ResearchSetupConsent({ onContinue }: ResearchSetupConsentProps) 
           </button>
 
           <p className="text-center text-xs text-gray-400">
-            Data is securely encrypted and processed for research purposes only.
+            Data is securely processed for research purposes only.
           </p>
         </form>
       </div>
