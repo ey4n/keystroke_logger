@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { KeystrokeEvent } from '../types/keystroke';
 import { KeystrokeAnalytics } from '../hooks/useKeystrokeLogger';
 import { saveKeystrokesNoAuth } from '../services/saveKeystrokes';
@@ -17,7 +17,9 @@ interface KeystrokeDataDisplayProps {
   testType?: string;
   sessionId?: string;
   formData?: Record<string, any>;
-  getActiveTypingTime?: () => number; 
+  getActiveTypingTime?: () => number;
+  /** Called when the post-survey is shown or hidden so parent can show full-screen overlay */
+  onPostSurveyVisible?: (visible: boolean) => void;
 }
 
 export function KeystrokeDataDisplay({
@@ -29,11 +31,19 @@ export function KeystrokeDataDisplay({
   sessionId,
   formData,
   getActiveTypingTime,
+  onPostSurveyVisible,
 }: KeystrokeDataDisplayProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showStressForm, setShowStressForm] = useState(false);
   const [postSurveyCompleted, setPostSurveyCompleted] = useState(false);
+
+  // When user submits post-survey, tell parent to hide full-screen overlay and show data in flow
+  useEffect(() => {
+    if (postSurveyCompleted) {
+      onPostSurveyVisible?.(false);
+    }
+  }, [postSurveyCompleted, onPostSurveyVisible]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [dataDeepDiveView, setDataDeepDiveView] = useState<'summary' | 'advanced'>('summary');
 
@@ -219,21 +229,14 @@ export function KeystrokeDataDisplay({
     currentScore = Math.max(0, currentScore - transcriptionPenalty);
   }
 
-  // End Test → show post-survey first; after submit we save and show results
+  // End Test → show post-survey as single centered box (like initial consent page); after submit → data screen
   if (!postSurveyCompleted) {
     return (
-      <div className="space-y-6">
-        <div className="p-5 rounded-xl bg-purple-50 border-2 border-purple-200">
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Post-Test Survey</h2>
-          <p className="text-sm text-gray-600">
-            Please complete this short survey. Your responses and test data will be saved together when you submit.
-          </p>
-        </div>
-        <StressWorkloadForm
-          onSubmit={handleStressFormSubmit}
-          onCancel={() => setPostSurveyCompleted(true)}
-        />
-      </div>
+      <StressWorkloadForm
+        variant="standalone"
+        onSubmit={handleStressFormSubmit}
+        onCancel={() => setPostSurveyCompleted(true)}
+      />
     );
   }
 
