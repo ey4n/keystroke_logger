@@ -24,7 +24,7 @@ interface TestContainerProps {
 
 export default function TestContainer({ consentData, sessionId: propSessionId }: TestContainerProps = {}) {
   const [currentTest, setCurrentTest] = useState<TestType>('free');
-  const [showData, setShowData] = useState(true);
+  const [showData, setShowData] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const [dataVersion, setDataVersion] = useState(0);
   
@@ -65,7 +65,19 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
     window.location.reload();
   };
 
-  const handleShowData = () => setShowData(prev => !prev);
+  const handleShowData = () => {
+    setShowData((prev) => {
+      const next = !prev;
+      // When ending test (showing data), stop timer/challenges so time ends
+      if (next && currentTest === 'timed') {
+        window.dispatchEvent(new CustomEvent('timed-test-save-clicked'));
+      }
+      if (next && currentTest === 'multitasking') {
+        window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
+      }
+      return next;
+    });
+  };
 
   // replace your clear handler with:
   const handleClearData = () => {

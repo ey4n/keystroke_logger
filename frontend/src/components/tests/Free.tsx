@@ -346,7 +346,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">You&apos;re done!</h2>
         <p className="text-gray-600 mb-6 max-w-md">
-          Scroll down and click &quot;Show All Data&quot;, then &quot;Save to Supabase&quot; to submit your responses.
+          Click &quot;End Test&quot; and complete the post survey questionnaire to submit your responses.
         </p>
         <button
           type="button"

@@ -33,6 +33,7 @@ export function KeystrokeDataDisplay({
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showStressForm, setShowStressForm] = useState(false);
+  const [postSurveyCompleted, setPostSurveyCompleted] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [dataDeepDiveView, setDataDeepDiveView] = useState<'summary' | 'advanced'>('summary');
 
@@ -41,22 +42,18 @@ export function KeystrokeDataDisplay({
       alert('No keystroke data to save!');
       return;
     }
-
-    // Stop challenges for multitasking test
     if (testType === 'multitasking') {
       window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
     }
-    // Stop timer and popups for timed test
     if (testType === 'timed') {
       window.dispatchEvent(new CustomEvent('timed-test-save-clicked'));
     }
-
-    // Show stress form first
     setShowStressForm(true);
   }
 
   async function handleStressFormSubmit(stressData: StressWorkloadData) {
     setShowStressForm(false);
+    setPostSurveyCompleted(true);
     
     try {
       setIsSaving(true);
@@ -222,9 +219,27 @@ export function KeystrokeDataDisplay({
     currentScore = Math.max(0, currentScore - transcriptionPenalty);
   }
 
+  // End Test → show post-survey first; after submit we save and show results
+  if (!postSurveyCompleted) {
+    return (
+      <div className="space-y-6">
+        <div className="p-5 rounded-xl bg-purple-50 border-2 border-purple-200">
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Post-Test Survey</h2>
+          <p className="text-sm text-gray-600">
+            Please complete this short survey. Your responses and test data will be saved together when you submit.
+          </p>
+        </div>
+        <StressWorkloadForm
+          onSubmit={handleStressFormSubmit}
+          onCancel={() => setPostSurveyCompleted(true)}
+        />
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Stress/Workload Form Modal */}
+      {/* Stress form modal (only when opened via legacy Submit Form button, e.g. colour test) */}
       {showStressForm && (
         <StressWorkloadForm
           onSubmit={handleStressFormSubmit}
@@ -232,7 +247,7 @@ export function KeystrokeDataDisplay({
         />
       )}
 
-      {/* Results - shown after successful save for timed, multitasking, and free tests */}
+      {/* Results - shown after post-survey submit for timed, multitasking, and free tests */}
       {showLeaderboard && (testType === 'timed' || testType === 'multitasking' || testType === 'free') && (
         <div data-leaderboard className="space-y-6">
           {/* Success banner */}
@@ -369,31 +384,28 @@ export function KeystrokeDataDisplay({
             Keystroke Data ({events.length} events)
           </h2>
 
-          {/* Action Buttons */}
+          {/* After post-survey we already saved; show status only (no "Submit Form" button) */}
           {events.length > 0 && (
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleSaveToSupabase}
-                disabled={isSaving}
-                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                  isSaving 
-                    ? 'bg-gray-400 cursor-not-allowed text-white' 
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                }`}
-              >
-                {isSaving ? 'Submitting…' : 'Submit Form'}
-              </button>
-              
-              {saveStatus === 'success' && (
+              {isSaving && (
+                <span className="text-gray-600 font-medium text-sm">Saving…</span>
+              )}
+              {saveStatus === 'success' && !isSaving && (
                 <span className="text-green-600 font-medium text-sm">
                   ✓ Submitted!
                 </span>
               )}
-              
-              {saveStatus === 'error' && (
-                <span className="text-red-600 font-medium text-sm">
-                  ✗ Failed
-                </span>
+              {saveStatus === 'error' && !isSaving && (
+                <>
+                  <span className="text-red-600 font-medium text-sm">✗ Failed</span>
+                  <button
+                    onClick={handleSaveToSupabase}
+                    disabled={isSaving}
+                    className="px-6 py-2 rounded-lg font-medium bg-green-600 hover:bg-green-700 text-white transition-colors"
+                  >
+                    Retry save
+                  </button>
+                </>
               )}
             </div>
           )}

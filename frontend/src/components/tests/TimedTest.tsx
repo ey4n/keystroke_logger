@@ -4,8 +4,10 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { useActiveTypingTimer } from '../../hooks/useActiveTypingTimer';
 import { FormData, createInitialFormData } from '../../types/formdata';
-import { DataCollectionForm } from '../forms/DataCollectionForm';
-import { generateQuestionSet, QuestionSet } from '../../types/questionpool';
+import { ShortInputField } from '../forms/FormFields';
+import { generateQuestionSet, QuestionSet, Question, TranscriptionQuestion } from '../../types/questionpool';
+
+const LONG_QUESTION_MAX_CHARS = 500;
 
 interface TimedTestProps {
   sessionId: string;
@@ -35,6 +37,14 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   }, [questionSet]);
 
   const TOTAL_SECONDS = 300;
+  const allLongQuestions: Question[] = useMemo(() => {
+    return [...questionSet.directLong, ...questionSet.indirectLong];
+  }, [questionSet]);
+
+  type Step = 'personal' | number | 'transcription' | 'complete';
+  const [step, setStep] = useState<Step>('personal');
+  const [transcriptionExpanded, setTranscriptionExpanded] = useState(true);
+
   const [formData, setFormData] = useState<FormData>(() => 
     createInitialFormData(allQuestionIds)
   );
@@ -192,8 +202,30 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   // Handle dismissing time warning
   const dismissTimeWarning = () => {
     setTimeWarningMessage(null);
-    // Resume typing timer when warning is dismissed
     typingTimer.resumeTimer();
+  };
+
+  const goNext = () => {
+    if (step === 'personal') {
+      setStep(0);
+      return;
+    }
+    if (typeof step === 'number') {
+      if (step + 1 < allLongQuestions.length) setStep(step + 1);
+      else setStep('transcription');
+      return;
+    }
+    if (step === 'transcription') setStep('complete');
+  };
+
+  const goBack = () => {
+    if (typeof step === 'number') {
+      if (step === 0) setStep('personal');
+      else setStep(step - 1);
+      return;
+    }
+    if (step === 'transcription') setStep(allLongQuestions.length - 1);
+    if (step === 'complete') setStep('transcription');
   };
 
   return (
@@ -293,35 +325,196 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
         </div>
       </div>
 
-      {/* Instructions */}
-      <div className="mb-6 p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
-        <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
-        <p className="text-sm text-gray-700 mb-3">
-          You have <strong>5 minutes (300 seconds)</strong> to fill out as many fields as possible. 
-          The timer starts as soon as you begin typing. Answer quickly but naturally!
-        </p>
-        <div className="bg-white p-3 rounded border border-indigo-200">
-          <p className="text-sm font-semibold text-gray-800 mb-1">📊 Scoring System:</p>
-          <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside">
-            <li>Complete all questions to earn <strong>maximum points ({maxPoints} points)</strong></li>
-            <li>You lose <strong>5 points</strong> for each incomplete question</li>
-            <li>Your current score is displayed at the top</li>
-          </ul>
-        </div>
-      </div>
+      {/* Stepped form: Personal → Long questions → Transcription → Complete */}
+      {step === 'personal' && (() => {
+        const totalFields = allQuestionIds.length;
+        const filledFields = allQuestionIds.filter(id => (formData[id] || '').trim() !== '').length;
+        const completionPercentage = Math.round((filledFields / totalFields) * 100);
+        return (
+        <>
+          <div className="mb-6 p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
+            <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
+            <p className="text-sm text-gray-700 mb-3">
+              You have <strong>5 minutes (300 seconds)</strong> to fill out as many fields as possible.
+              The timer starts when you begin typing. Answer quickly but naturally!
+            </p>
+            <div className="bg-white p-3 rounded border border-indigo-200">
+              <p className="text-sm font-semibold text-gray-800 mb-1">📊 Scoring System:</p>
+              <ul className="text-xs text-gray-700 space-y-1 list-disc list-inside">
+                <li>Complete all questions to earn <strong>maximum points ({maxPoints} points)</strong></li>
+                <li>You lose <strong>5 points</strong> for each incomplete question</li>
+                <li>Your current score is displayed at the top</li>
+              </ul>
+            </div>
+            <div className="mt-2 text-sm text-gray-600">
+              Progress: <strong>{completionPercentage}% Complete</strong> ({filledFields}/{totalFields} fields)
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Personal Details</p>
+            <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-purple-500" />
+              <span>KEYSTROKES RECORDING</span>
+            </div>
+          </div>
+          <div className="space-y-6 mb-6">
+            {[...questionSet.requiredShort, ...questionSet.short].map((q) => (
+              <ShortInputField
+                key={q.id}
+                label={q.label}
+                value={formData[q.id] || ''}
+                onChange={handleInputChange(q.id)}
+                onKeyDown={handleKeyDown}
+                onKeyUp={logKeyUp as any}
+                onBeforeInput={logInputFallback}
+                onFocus={() => handleFieldFocus(q.id)}
+                disabled={timerExpired}
+              />
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={goNext}
+              className="px-6 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 min-w-[120px]"
+            >
+              Next
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </button>
+          </div>
+        </>
+        );
+      })()}
 
-      {/* Form */}
-      <DataCollectionForm
-        formData={formData}
-        questions={questionSet}
-        onInputChange={handleInputChange}
-        onKeyDown={handleKeyDown}
-        onKeyUp={logKeyUp}
-        onBeforeInput={logInputFallback}
-        disabled={timerExpired}
-        onFieldFocus={handleFieldFocus} 
-        className="max-h-[500px] overflow-y-auto pr-2 mb-6"
-      />
+      {typeof step === 'number' && allLongQuestions[step] && (() => {
+        const q = allLongQuestions[step];
+        const value = formData[q.id] || '';
+        const isDirectLong = step < questionSet.directLong.length;
+        const sectionTitle = isDirectLong ? 'Tell Us About Yourself' : 'Reflections & Insights';
+        return (
+          <div className="min-h-[360px] flex flex-col bg-white rounded-xl border border-gray-200 p-6 sm:p-8">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{sectionTitle}</p>
+              <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-purple-500" />
+                <span>KEYSTROKES RECORDING</span>
+              </div>
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">{q.label}</h2>
+            <p className="text-sm text-gray-500 italic mb-4">Write at least 2 sentences.</p>
+            <textarea
+              value={value}
+              onChange={handleInputChange(q.id)}
+              onKeyDown={handleKeyDown}
+              onKeyUp={logKeyUp as any}
+              onBeforeInput={logInputFallback ? (e) => {
+                const n = e.nativeEvent as InputEvent;
+                logInputFallback({ data: n.data, inputType: n.inputType });
+              } : undefined}
+              onFocus={() => handleFieldFocus(q.id)}
+              maxLength={LONG_QUESTION_MAX_CHARS}
+              placeholder="Start typing here..."
+              rows={5}
+              disabled={timerExpired}
+              className="w-full min-h-[160px] px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-purple-500 outline-none transition-all resize-y"
+            />
+            <div className="mt-2 text-center text-sm text-gray-500">
+              <span className="text-purple-600 font-medium">{value.length}</span>
+              <span> / {LONG_QUESTION_MAX_CHARS} characters</span>
+            </div>
+            <div className="mt-6 flex items-center justify-between gap-4">
+              <button type="button" onClick={goBack} className="px-6 py-3 text-gray-700 border-2 border-gray-300 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 min-w-[120px]">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" /></svg>
+                Back
+              </button>
+              <button type="button" onClick={goNext} className="px-6 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 min-w-[120px]">
+                Next
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {step === 'transcription' && questionSet.transcription.length > 0 && (() => {
+        const t = questionSet.transcription[0] as TranscriptionQuestion;
+        const value = formData[t.id] || '';
+        return (
+          <div className="min-h-[360px] flex flex-col">
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Transcription Task</p>
+              <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
+                <span className="w-2 h-2 rounded-full bg-purple-500" />
+                <span>KEYSTROKES RECORDING</span>
+              </div>
+            </div>
+            <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              <button type="button" onClick={() => setTranscriptionExpanded(!transcriptionExpanded)} className="w-full flex items-center justify-between text-left">
+                <span className="text-sm font-semibold text-gray-800">
+                  {transcriptionExpanded ? '▼ Reference paragraph (click to collapse)' : '▶ Reference paragraph (click to show)'}
+                </span>
+              </button>
+              {transcriptionExpanded && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-sm text-gray-700 mb-2">{t.instructions}</p>
+                  <div className="bg-white p-4 rounded-xl border border-gray-200">
+                    <p className="text-sm text-gray-800 leading-relaxed font-mono">"{t.paragraph}"</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 bg-white rounded-xl border border-gray-200 p-6 sm:p-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t.label}</h2>
+              <textarea
+                value={value}
+                onChange={handleInputChange(t.id)}
+                onKeyDown={handleKeyDown}
+                onKeyUp={logKeyUp as any}
+                onBeforeInput={logInputFallback ? (e) => { const n = e.nativeEvent as InputEvent; logInputFallback({ data: n.data, inputType: n.inputType }); } : undefined}
+                onFocus={() => handleFieldFocus(t.id)}
+                placeholder="Type the paragraph here..."
+                rows={5}
+                disabled={timerExpired}
+                className="w-full min-h-[160px] px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-purple-500 outline-none transition-all resize-y"
+              />
+              <div className="mt-2 text-center text-sm text-gray-500">
+                <span className="text-purple-600 font-medium">{value.length}</span>
+                <span> / {t.paragraph.length} characters</span>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center justify-between gap-4">
+              <button type="button" onClick={goBack} className="px-6 py-3 text-gray-700 border-2 border-gray-300 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 min-w-[120px]">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" /></svg>
+                Back
+              </button>
+              <button type="button" onClick={goNext} className="px-6 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 min-w-[120px]">
+                Next
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {step === 'complete' && (
+        <div className="min-h-[240px] flex flex-col items-center justify-center text-center py-12 px-4 bg-white rounded-xl border border-gray-200">
+          <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mb-4">
+            <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">You&apos;re done!</h2>
+          <p className="text-gray-600 mb-6 max-w-md">
+            Click &quot;End Test&quot; and complete the post survey questionnaire to submit your responses.
+          </p>
+          <button type="button" onClick={goBack} className="px-4 py-2.5 text-gray-600 border border-gray-300 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" /></svg>
+            Back
+          </button>
+        </div>
+      )}
     </div>
   );
 }
