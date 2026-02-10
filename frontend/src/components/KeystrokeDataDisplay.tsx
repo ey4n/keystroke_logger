@@ -338,8 +338,108 @@ export function KeystrokeDataDisplay({
                   </div>
                 </div>
               )}
-              {dataDeepDiveView === 'advanced' && (
-                <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
+              {dataDeepDiveView === 'advanced' && analytics && events.length > 0 && (
+                <>
+                  {/* Advanced metrics grid */}
+                  <div className="mb-6">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Advanced metrics</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {'holdDurationAvgMs' in analytics && (
+                        <>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Hold duration (avg)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.holdDurationAvgMs} ms</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Hold duration (min–max)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.holdDurationMinMs} – {analytics.holdDurationMaxMs} ms</div>
+                          </div>
+                        </>
+                      )}
+                      {'interKeyIntervalAvgMs' in analytics && (
+                        <>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Inter-key interval (avg)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.interKeyIntervalAvgMs} ms</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Inter-key (median)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.interKeyIntervalMedianMs} ms</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Inter-key (std)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.interKeyIntervalStdMs} ms</div>
+                          </div>
+                        </>
+                      )}
+                      {'pauseCount' in analytics && (
+                        <>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Pause count (&gt;500 ms)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.pauseCount}</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Total pause time</div>
+                            <div className="text-lg font-semibold text-gray-900">{(analytics.totalPauseTimeMs / 1000).toFixed(1)} s</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Longest pause</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.longestPauseMs} ms</div>
+                          </div>
+                        </>
+                      )}
+                      {'backspaceRate' in analytics && (
+                        <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Backspace rate</div>
+                          <div className="text-lg font-semibold text-gray-900">{(analytics.backspaceRate * 100).toFixed(1)}%</div>
+                        </div>
+                      )}
+                      {'rollingKPM30s' in analytics && (
+                        <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Rolling KPM (30 s)</div>
+                          <div className="text-lg font-semibold text-gray-900">{analytics.rollingKPM30s}</div>
+                        </div>
+                      )}
+                      {'typingRhythmConsistencyMs' in analytics && (
+                        <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Rhythm consistency (std)</div>
+                          <div className="text-lg font-semibold text-gray-900">{analytics.typingRhythmConsistencyMs} ms</div>
+                        </div>
+                      )}
+                      {getActiveTypingTime && (
+                        <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Active typing time</div>
+                          <div className="text-lg font-semibold text-gray-900">{((getActiveTypingTime() || 0) / 1000).toFixed(1)} s</div>
+                        </div>
+                      )}
+                    </div>
+                    {'perField' in analytics && analytics.perField && Object.keys(analytics.perField).length > 0 && (
+                      <div className="mt-4 p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Per-field</div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-left text-gray-500 border-b border-gray-200">
+                                <th className="pb-1.5 pr-3">Field</th>
+                                <th className="pb-1.5 pr-3">Events</th>
+                                <th className="pb-1.5">Duration</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Object.entries(analytics.perField).map(([field, stats]) => (
+                                <tr key={field} className="border-b border-gray-100">
+                                  <td className="py-1 pr-3 font-mono text-gray-800">{field === '_unknown_' ? '(unknown)' : field}</td>
+                                  <td className="py-1 pr-3">{stats.eventCount}</td>
+                                  <td className="py-1">{(stats.durationMs / 1000).toFixed(1)} s</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
                   <table className="w-full text-sm border-collapse">
                     <thead className="bg-gray-100 sticky top-0">
                       <tr>
@@ -373,6 +473,7 @@ export function KeystrokeDataDisplay({
                     </tbody>
                   </table>
                 </div>
+                </>
               )}
             </div>
           </div>
