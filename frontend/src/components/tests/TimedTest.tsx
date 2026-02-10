@@ -154,7 +154,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
         clearInterval(timerRef.current);
       }
     };
-  }, [isTimerActive, timeLeft, typingTimer]);
+  }, [isTimerActive, timeLeft]); // Removed typingTimer from dependencies
 
   // When user clicks Save Data, stop timer, clear popups, and lock form
   useEffect(() => {
@@ -280,7 +280,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
               <p className="text-sm text-red-600 mb-6">Keep going — time is running out!</p>
               <button
                 type="button"
-                onClick={() => setTimeWarningMessage(null)}
+                onClick={dismissTimeWarning}
                 className="w-full py-4 px-6 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-lg shadow-lg transition-colors"
               >
                 Continue
@@ -306,7 +306,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
             <p className="text-sm text-gray-600">
               {timerExpired ? 'You ran out of time!' : 
                isTimerActive ? 'Fill out as much as you can!' : 
-               'Start typing to begin the 2-minute challenge'}
+               'Start typing to begin the 4-minute challenge'}
             </p>
           </div>
           <div className="text-right">
@@ -335,7 +335,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
           <div className="mb-6 p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
             <h3 className="font-semibold text-gray-800 mb-2">📋 Instructions</h3>
             <p className="text-sm text-gray-700 mb-3">
-              You have <strong>5 minutes (300 seconds)</strong> to fill out as many fields as possible.
+              You have <strong>4 minutes (240 seconds)</strong> to fill out as many fields as possible.
               The timer starts when you begin typing. Answer quickly but naturally!
             </p>
             <div className="bg-white p-3 rounded border border-indigo-200">
