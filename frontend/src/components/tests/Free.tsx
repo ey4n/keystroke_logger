@@ -346,7 +346,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">You&apos;re done!</h2>
         <p className="text-gray-600 mb-6 max-w-md">
-          Click &quot;End Test&quot; and complete the post survey questionnaire to submit your responses.
+          Click &quot;End Test&quot; to finish. You&apos;ll complete a short post-task questionnaire and your responses will then be saved automatically.
         </p>
         <button
           type="button"
