@@ -2,6 +2,11 @@
 import { useRef, useCallback } from 'react';
 import { KeystrokeEvent } from '../types/keystroke';
 
+export interface PerFieldStats {
+  eventCount: number;
+  durationMs: number;
+}
+
 export interface KeystrokeAnalytics {
   totalEvents: number;
   keydownCount: number;
@@ -9,6 +14,36 @@ export interface KeystrokeAnalytics {
   duration: number;
   averageSpeed: number;
   uniqueKeys: number;
+  // Extended metrics (from events only)
+  holdDurationAvgMs: number;
+  holdDurationMinMs: number;
+  holdDurationMaxMs: number;
+  interKeyIntervalAvgMs: number;
+  interKeyIntervalMedianMs: number;
+  interKeyIntervalStdMs: number;
+  pauseCount: number;           // gaps > 500ms between keydowns
+  totalPauseTimeMs: number;
+  backspaceRate: number;        // 0–1 (Backspace keydowns / keydownCount)
+  rollingKPM30s: number;       // KPM over last 30s
+  perField: Record<string, PerFieldStats>;
+  typingRhythmConsistencyMs: number; // std dev of inter-key intervals
+  longestPauseMs: number;
+}
+
+const PAUSE_THRESHOLD_MS = 500;
+
+function median(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  const s = [...arr].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+}
+
+function stdDev(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  const avg = arr.reduce((a, b) => a + b, 0) / arr.length;
+  const variance = arr.reduce((sum, x) => sum + (x - avg) ** 2, 0) / arr.length;
+  return Math.sqrt(variance);
 }
 
 // simple uuid-ish for session grouping
@@ -158,12 +193,66 @@ export function useKeystrokeLogger(externalSessionId?: string) {
 
     let duration = 0;
     let averageSpeed = 0;
-
+    const lastTimestamp = logs.length > 0 ? logs[logs.length - 1]!.timestamp : 0;
     if (logs.length > 0 && startTime.current) {
-      const lastTimestamp = logs[logs.length - 1].timestamp;
       duration = lastTimestamp - startTime.current;
       if (duration > 0) averageSpeed = (keydownEvents.length / duration) * 60000; // KPM
     }
+
+    // Hold durations: pair keydown-keyup by code
+    const holdDurations: number[] = [];
+    for (let i = 0; i < logs.length - 1; i++) {
+      const ev = logs[i]!;
+      if (ev.eventType !== 'keydown') continue;
+      for (let j = i + 1; j < logs.length; j++) {
+        const next = logs[j]!;
+        if (next.code === ev.code && next.eventType === 'keyup') {
+          holdDurations.push(next.timestamp - ev.timestamp);
+          break;
+        }
+      }
+    }
+    const holdDurationAvgMs = holdDurations.length > 0 ? holdDurations.reduce((a, b) => a + b, 0) / holdDurations.length : 0;
+    const holdDurationMinMs = holdDurations.length > 0 ? Math.min(...holdDurations) : 0;
+    const holdDurationMaxMs = holdDurations.length > 0 ? Math.max(...holdDurations) : 0;
+
+    // Inter-key delays (keydown to keydown)
+    const interKeyDelays: number[] = [];
+    for (let i = 1; i < keydownEvents.length; i++) {
+      interKeyDelays.push(keydownEvents[i]!.timestamp - keydownEvents[i - 1]!.timestamp);
+    }
+    const interKeyIntervalAvgMs = interKeyDelays.length > 0 ? interKeyDelays.reduce((a, b) => a + b, 0) / interKeyDelays.length : 0;
+    const interKeyIntervalMedianMs = median(interKeyDelays);
+    const interKeyIntervalStdMs = stdDev(interKeyDelays);
+    const longestPauseMs = interKeyDelays.length > 0 ? Math.max(...interKeyDelays) : 0;
+
+    // Pauses: gaps > threshold
+    const pauseCount = interKeyDelays.filter(d => d > PAUSE_THRESHOLD_MS).length;
+    const totalPauseTimeMs = interKeyDelays.filter(d => d > PAUSE_THRESHOLD_MS).reduce((a, b) => a + b, 0);
+
+    // Backspace rate
+    const backspaceCount = keydownEvents.filter(e => e.key === 'Backspace').length;
+    const backspaceRate = keydownEvents.length > 0 ? backspaceCount / keydownEvents.length : 0;
+
+    // Rolling KPM (last 30s)
+    const windowMs = 30_000;
+    const cutoff = lastTimestamp - windowMs;
+    const keydownsInWindow = keydownEvents.filter(e => e.timestamp >= cutoff).length;
+    const rollingKPM30s = keydownsInWindow > 0 && windowMs > 0 ? Math.round((keydownsInWindow / (windowMs / 60_000))) : 0;
+
+    // Per-field: event count and time span (first to last event in that field)
+    const perField: Record<string, PerFieldStats> = {};
+    const byField = new Map<string, KeystrokeEvent[]>();
+    for (const e of keydownEvents) {
+      const fn = e.fieldName ?? '_unknown_';
+      if (!byField.has(fn)) byField.set(fn, []);
+      byField.get(fn)!.push(e);
+    }
+    byField.forEach((evs, fieldName) => {
+      const first = evs[0]!.timestamp;
+      const last = evs[evs.length - 1]!.timestamp;
+      perField[fieldName] = { eventCount: evs.length, durationMs: last - first };
+    });
 
     return {
       totalEvents: logs.length,
@@ -172,6 +261,19 @@ export function useKeystrokeLogger(externalSessionId?: string) {
       duration,
       averageSpeed: Math.round(averageSpeed),
       uniqueKeys,
+      holdDurationAvgMs: Math.round(holdDurationAvgMs),
+      holdDurationMinMs,
+      holdDurationMaxMs,
+      interKeyIntervalAvgMs: Math.round(interKeyIntervalAvgMs),
+      interKeyIntervalMedianMs: Math.round(interKeyIntervalMedianMs),
+      interKeyIntervalStdMs: Math.round(interKeyIntervalStdMs),
+      pauseCount,
+      totalPauseTimeMs,
+      backspaceRate,
+      rollingKPM30s,
+      perField,
+      typingRhythmConsistencyMs: Math.round(interKeyIntervalStdMs),
+      longestPauseMs,
     } as KeystrokeAnalytics;
   }, []);
 

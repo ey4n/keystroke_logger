@@ -165,7 +165,7 @@ export function WellnessBaselineForm({ step1Data, onConsent }: WellnessBaselineF
 
           {/* Sleep hours */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Sleep in the last 24 hours</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Sleep (hours) in the last 24 hours</label>
             <input
               type="number"
               min={0}
