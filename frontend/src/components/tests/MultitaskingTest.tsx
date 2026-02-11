@@ -25,6 +25,7 @@ interface Challenge {
   options?: string[];
   colorWord?: string;
   inkColor?: string;
+  stroopMode?: 'ink' | 'word'; 
 }
 
 interface ChallengeResult {
@@ -199,7 +200,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   }, [formData, completedChallenges, challengeResults, completionPercentage, score, typingTimer.getActiveTime]);
 
   // Generate challenges
-  const generateChallenge = (): Challenge => {
+const generateChallenge = (): Challenge => {
     const challengeId = Date.now();
     const isMath = Math.random() > 0.5;
 
@@ -236,34 +237,45 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         correctAnswer: op.a,
       };
     } else {
+      // Randomly decide whether to ask for ink color or word
+      const askForInk = Math.random() > 0.5;
+      
       const stroopCombos = [
-        { word: 'RED',    ink: 'blue',   answer: 'Blue' },
-        { word: 'BLUE',   ink: 'red',    answer: 'Red' },
-        { word: 'GREEN',  ink: 'yellow', answer: 'Yellow' },
-        { word: 'YELLOW', ink: 'green',  answer: 'Green' },
-        { word: 'PURPLE', ink: 'orange', answer: 'Orange' },
-        { word: 'ORANGE', ink: 'purple', answer: 'Purple' },
-        { word: 'GREEN',  ink: 'red',    answer: 'Red' },
-        { word: 'YELLOW', ink: 'red',    answer: 'Red' },
-        { word: 'RED',    ink: 'green',  answer: 'Green' },
-        { word: 'BLUE',   ink: 'yellow', answer: 'Yellow' },
+        { word: 'RED',    ink: 'blue',   inkAnswer: 'Blue',   wordAnswer: 'Red' },
+        { word: 'BLUE',   ink: 'red',    inkAnswer: 'Red',    wordAnswer: 'Blue' },
+        { word: 'GREEN',  ink: 'yellow', inkAnswer: 'Yellow', wordAnswer: 'Green' },
+        { word: 'YELLOW', ink: 'green',  inkAnswer: 'Green',  wordAnswer: 'Yellow' },
+        { word: 'PURPLE', ink: 'orange', inkAnswer: 'Orange', wordAnswer: 'Purple' },
+        { word: 'ORANGE', ink: 'purple', inkAnswer: 'Purple', wordAnswer: 'Orange' },
+        { word: 'GREEN',  ink: 'red',    inkAnswer: 'Red',    wordAnswer: 'Green' },
+        { word: 'YELLOW', ink: 'red',    inkAnswer: 'Red',    wordAnswer: 'Yellow' },
+        { word: 'RED',    ink: 'green',  inkAnswer: 'Green',  wordAnswer: 'Red' },
+        { word: 'BLUE',   ink: 'yellow', inkAnswer: 'Yellow', wordAnswer: 'Blue' },
       ];
       const chosen = stroopCombos[Math.floor(Math.random() * stroopCombos.length)];
+      
+      // All possible colors for options
       const allColors = ['Red', 'Blue', 'Green', 'Yellow', 'Orange', 'Purple'];
-      const wrongColors = allColors.filter(c => c !== chosen.answer);
+      
+      // Determine correct answer and generate options based on mode
+      const correctAnswer = askForInk ? chosen.inkAnswer : chosen.wordAnswer;
+      const wrongOptions = allColors.filter(c => c !== correctAnswer);
       const shuffled = [
-        chosen.answer,
-        ...wrongColors.sort(() => Math.random() - 0.5).slice(0, 3)
+        correctAnswer,
+        ...wrongOptions.sort(() => Math.random() - 0.5).slice(0, 3)
       ].sort(() => Math.random() - 0.5);
 
       return {
         id: challengeId,
         type: 'stroop',
-        question: 'What color is the INK? (Not the word itself)',
-        correctAnswer: chosen.answer,
+        question: askForInk 
+          ? 'What color is the INK? (Not the word itself)'
+          : 'What WORD is written? (Ignore the ink color)',
+        correctAnswer: correctAnswer,
         colorWord: chosen.word,
         inkColor: chosen.ink,
         options: shuffled,
+        stroopMode: askForInk ? 'ink' : 'word',
       };
     }
   };
@@ -639,6 +651,9 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
                 onKeyUp={logKeyUp as any}
                 onBeforeInput={logInputFallback ? (e) => { const n = e.nativeEvent as InputEvent; logInputFallback({ data: n.data, inputType: n.inputType }); } : undefined}
                 onFocus={() => handleFieldFocus(t.id)}
+                onPaste={(e) => e.preventDefault()}
+                onCopy={(e) => e.preventDefault()}
+                onCut={(e) => e.preventDefault()}
                 placeholder="Type the paragraph here..."
                 rows={5}
                 disabled={isFormDisabled}
@@ -672,7 +687,7 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">You&apos;re done!</h2>
           <p className="text-gray-600 mb-6 max-w-md">
-            Click &quot;End Test&quot; to finish. You&apos;ll complete a short post-task questionnaire and your responses will then be saved automatically.
+            Click &quot;End Test&quot; to submit your responses.
           </p>
           <button type="button" onClick={goBack} className="px-4 py-2.5 text-gray-600 border border-gray-300 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" /></svg>

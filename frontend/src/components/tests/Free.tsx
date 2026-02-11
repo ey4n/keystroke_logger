@@ -113,7 +113,6 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
       setStep('complete');
       // Stop timer when test is complete
       typingTimer.stopTimer();
-      onFlowComplete?.();
     }
   };
 
@@ -300,6 +299,9 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
               logInputFallback({ data: n.data, inputType: n.inputType });
             } : undefined}
             onFocus={() => handleFieldFocus(t.id)}
+            onPaste={(e) => e.preventDefault()}
+            onCopy={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
             placeholder="Type the paragraph here..."
             rows={6}
             className="w-full min-h-[180px] px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-purple-500 outline-none transition-all resize-y"
@@ -346,7 +348,7 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
         </div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">You&apos;re done!</h2>
         <p className="text-gray-600 mb-6 max-w-md">
-          Click &quot;End Test&quot; to finish. You&apos;ll complete a short post-task questionnaire and your responses will then be saved automatically.
+          Click &quot;End Test&quot; to submit your responses.
         </p>
         <button
           type="button"
