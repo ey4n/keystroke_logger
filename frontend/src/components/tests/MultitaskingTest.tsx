@@ -4,6 +4,7 @@ import { useActiveTypingTimer } from '../../hooks/useActiveTypingTimer';
 import { FormData, createInitialFormData } from '../../types/formdata';
 import { ShortInputField } from '../forms/FormFields';
 import { generateQuestionSet, QuestionSet, Question, TranscriptionQuestion } from '../../types/questionpool';
+import { getTranscriptionPenaltyDetails } from '../../utils/transcriptionValidation';
 
 const LONG_QUESTION_MAX_CHARS = 150;
 
@@ -120,7 +121,15 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
   // Form complete only when every field is filled; score: 100 only when complete, -5 per wrong challenge
   const formComplete = filledFields === totalFields && totalFields > 0;
   const baseScore = formComplete ? 100 : 0;
-  const score = Math.max(0, baseScore - wrongChallenges * 5);
+  const challengeScore = Math.max(0, baseScore - wrongChallenges * 5);
+
+  // Transcription penalty (1 pt per error, max 10) so top scoreboard matches leaderboard
+  const transcriptionQuestion = questionSet.transcription[0] as TranscriptionQuestion | undefined;
+  const transcriptionUserText = transcriptionQuestion ? (formData[transcriptionQuestion.id] ?? '') : '';
+  const { penalty: transcriptionPenalty } = transcriptionQuestion
+    ? getTranscriptionPenaltyDetails(transcriptionUserText, transcriptionQuestion.paragraph)
+    : { penalty: 0 };
+  const score = Math.max(0, challengeScore - transcriptionPenalty);
 
   // Track when challenges appear/disappear to pause/resume typing timer
   useEffect(() => {
@@ -191,13 +200,13 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         wrongChallenges,
         averageResponseTime: avgResponseTime,
         challengeResults: challengeResults,
-        score,
+        score: challengeScore, // pre-transcription; display layer applies transcription penalty for leaderboard
         formSnapshot: formData,
         questionSet: questionSet,
       },
       getActiveTypingTime: typingTimer.getActiveTime,
     });
-  }, [formData, completedChallenges, challengeResults, completionPercentage, score, typingTimer.getActiveTime]);
+  }, [formData, completedChallenges, challengeResults, completionPercentage, challengeScore, typingTimer.getActiveTime]);
 
   // Generate challenges
 const generateChallenge = (): Challenge => {
@@ -468,9 +477,12 @@ const generateChallenge = (): Challenge => {
             <div className="text-white text-sm font-medium mb-1">Your Score</div>
             <div className="text-white text-5xl font-bold">{formComplete ? score : '—'}</div>
             <div className="text-purple-100 text-xs mt-1">
-              {formComplete ? `Form complete: 100 pts • -5 per wrong challenge` : `Complete all fields to see your score (${filledFields}/${totalFields})`}
+              {formComplete ? `Form complete: 100 pts -5 per wrong challenge • -1 per transcription error` : `Complete all fields to see your score (${filledFields}/${totalFields})`}
               {formComplete && wrongChallenges > 0 && (
                 <span className="ml-2">• {wrongChallenges} wrong (-{wrongChallenges * 5} pts)</span>
+              )}
+              {formComplete && transcriptionPenalty > 0 && (
+                <span className="ml-2">• transcription (-{transcriptionPenalty} pts)</span>
               )}
             </div>
           </div>
