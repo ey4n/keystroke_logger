@@ -1,0 +1,11 @@
+# Render Blueprint: Next.js app lives in frontend/
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: keystroke-logger
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    # No publishDirectory: this is a Node.js Web Service (next start), not a static site.
+    # If your dashboard has "Publish directory" set to "build", clear it.
