@@ -16,6 +16,8 @@ interface StressWorkloadFormProps {
   onCancel?: () => void;
   /** When 'standalone', full-page gray + centered card (like Baseline). When 'modal', overlay + card. */
   variant?: 'modal' | 'standalone';
+  /** When true, hide the "More stressed than at baseline?" field (e.g. for Free typing test). */
+  hideMoreStressedThanBaseline?: boolean;
 }
 
 const selectStyle = {
@@ -25,7 +27,7 @@ const selectStyle = {
   backgroundSize: '1.25rem',
 };
 
-export function StressWorkloadForm({ onSubmit, onCancel, variant = 'modal' }: StressWorkloadFormProps) {
+export function StressWorkloadForm({ onSubmit, onCancel, variant = 'modal', hideMoreStressedThanBaseline = false }: StressWorkloadFormProps) {
   const [stressLevel, setStressLevel] = useState<number | null>(null);
   const [mentalDemand, setMentalDemand] = useState<number | null>(null);
   const [rushedFeeling, setRushedFeeling] = useState<number | null>(null);
@@ -44,7 +46,7 @@ export function StressWorkloadForm({ onSubmit, onCancel, variant = 'modal' }: St
       mentalDemand,
       rushedFeeling,
       concentrationDifficulty,
-      moreStressedThanBaseline,
+      moreStressedThanBaseline: hideMoreStressedThanBaseline ? 'Unsure' : moreStressedThanBaseline,
       discomfortOrDistraction: discomfortOrDistraction.trim() || undefined,
     });
   };
@@ -119,21 +121,25 @@ export function StressWorkloadForm({ onSubmit, onCancel, variant = 'modal' }: St
           onChange={setConcentrationDifficulty}
         />
 
-        {/* Optional – same uppercase label style as Baseline */}
+        {/* Optional – same uppercase label style as Baseline (hidden for Free test via hideMoreStressedThanBaseline) */}
         <div className="pt-2 border-t border-gray-100 space-y-3">
-          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-            More stressed than at baseline?
-          </label>
-          <select
-            value={moreStressedThanBaseline}
-            onChange={(e) => setMoreStressedThanBaseline(e.target.value as 'Yes' | 'No' | 'Unsure')}
-            className="w-full min-h-[48px] pl-3 pr-10 py-2.5 text-base border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none cursor-pointer"
-            style={selectStyle}
-          >
-            <option value="Yes">Yes</option>
-            <option value="No">No</option>
-            <option value="Unsure">Unsure</option>
-          </select>
+          {!hideMoreStressedThanBaseline && (
+            <>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                More stressed than at baseline?
+              </label>
+              <select
+                value={moreStressedThanBaseline}
+                onChange={(e) => setMoreStressedThanBaseline(e.target.value as 'Yes' | 'No' | 'Unsure')}
+                className="w-full min-h-[48px] pl-3 pr-10 py-2.5 text-base border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none cursor-pointer"
+                style={selectStyle}
+              >
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+                <option value="Unsure">Unsure</option>
+              </select>
+            </>
+          )}
           <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
             Any discomfort or distraction? (optional)
           </label>

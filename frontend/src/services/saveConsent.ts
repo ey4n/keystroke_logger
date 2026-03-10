@@ -7,6 +7,7 @@ export async function saveConsent(sessionId: string, consentData: ConsentData) {
   const row = {
     session_id: sessionId,
     consent_given: consentData.consentGiven,
+    administration_mode: consentData.administrationMode,
     device_type: consentData.deviceType,
     primary_language: consentData.primaryLanguage,
     language_other: consentData.languageOther || null,

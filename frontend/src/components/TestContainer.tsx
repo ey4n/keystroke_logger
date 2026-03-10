@@ -11,6 +11,7 @@ import { TestType } from '../types/keystroke';
 
 interface ConsentData {
   consentGiven: boolean;
+  administrationMode?: 'online' | 'in_person';
   deviceType: string;
   primaryLanguage: string;
   languageOther?: string;
@@ -226,9 +227,12 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
               <span>All data is securely captured with your session ID</span>
             </div>
             {consentData && (
-              <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-2 text-xs flex-wrap">
                 <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded">Device: {consentData.deviceType}</span>
                 <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded">Browser: {consentData.browser}</span>
+                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                  {consentData.administrationMode === 'in_person' ? 'In person (supervised)' : 'Online (unsupervised)'}
+                </span>
               </div>
             )}
           </div>

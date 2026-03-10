@@ -7,6 +7,7 @@ import { saveConsent } from '../services/saveConsent';
 
 interface ConsentData {
   consentGiven: boolean;
+  administrationMode: 'online' | 'in_person';
   deviceType: string;
   primaryLanguage: string;
   languageOther?: string;
@@ -44,6 +45,7 @@ export default function Page() {
       try {
         const data = JSON.parse(stored);
         if (data.consentGiven) {
+          if (!data.administrationMode) data.administrationMode = 'online';
           setConsentData(data);
           setHasConsent(true);
         } else {

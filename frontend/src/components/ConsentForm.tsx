@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ResearchSetupConsent, type SetupConsentStepData } from './ResearchSetupConsent';
+import { ResearchSetupConsent, type SetupConsentStepData, type AdministrationMode } from './ResearchSetupConsent';
 import { WellnessBaselineForm } from './WellnessBaselineForm';
 
 export interface ConsentData {
   consentGiven: boolean;
+  administrationMode: AdministrationMode;
   deviceType: string;
   primaryLanguage: string;
   languageOther?: string;

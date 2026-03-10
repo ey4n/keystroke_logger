@@ -236,6 +236,7 @@ export function KeystrokeDataDisplay({
         variant="standalone"
         onSubmit={handleStressFormSubmit}
         onCancel={() => setPostSurveyCompleted(true)}
+        hideMoreStressedThanBaseline={testType === 'free'}
       />
     );
   }

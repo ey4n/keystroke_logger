@@ -2,8 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 
+export type AdministrationMode = 'online' | 'in_person';
+
 export interface SetupConsentStepData {
   consentGiven: boolean;
+  administrationMode: AdministrationMode;
   deviceType: string;
   primaryLanguage: string;
   languageOther?: string;
@@ -16,6 +19,7 @@ interface ResearchSetupConsentProps {
 
 export function ResearchSetupConsent({ onContinue }: ResearchSetupConsentProps) {
   const [consentGiven, setConsentGiven] = useState(false);
+  const [administrationMode, setAdministrationMode] = useState<SetupConsentStepData['administrationMode']>('online');
   const [deviceType, setDeviceType] = useState('');
   const [primaryLanguage, setPrimaryLanguage] = useState('English (UK)');
   const [languageOther, setLanguageOther] = useState('');
@@ -56,6 +60,7 @@ export function ResearchSetupConsent({ onContinue }: ResearchSetupConsentProps) 
     if (!validate()) return;
     onContinue({
       consentGiven,
+      administrationMode,
       deviceType,
       primaryLanguage: primaryLanguage === 'Other' ? languageOther.trim() : primaryLanguage,
       ...(primaryLanguage === 'Other' && { languageOther: languageOther.trim() }),
@@ -111,6 +116,20 @@ export function ResearchSetupConsent({ onContinue }: ResearchSetupConsentProps) 
                 </svg>
               </span>
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Your setup</span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-400 uppercase tracking-wide mb-1.5">Session type</label>
+              <select
+                value={administrationMode}
+                onChange={(e) => setAdministrationMode(e.target.value as SetupConsentStepData['administrationMode'])}
+                className="w-full min-h-[48px] pl-3 pr-10 py-2.5 text-base border border-gray-300 rounded-xl bg-gray-50 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 focus:bg-white appearance-none cursor-pointer"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25rem' }}
+              >
+                <option value="online">Online (without supervision)</option>
+                <option value="in_person">In person (with supervision)</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Whether this form is completed remotely or with a researcher present.</p>
             </div>
 
             <div>

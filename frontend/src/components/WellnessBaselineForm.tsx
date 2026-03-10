@@ -68,6 +68,7 @@ export function WellnessBaselineForm({ step1Data, onConsent }: WellnessBaselineF
 
     const fullData: ConsentData = {
       consentGiven: step1Data.consentGiven,
+      administrationMode: step1Data.administrationMode,
       deviceType: step1Data.deviceType,
       primaryLanguage: step1Data.primaryLanguage,
       ...(step1Data.languageOther && { languageOther: step1Data.languageOther }),
