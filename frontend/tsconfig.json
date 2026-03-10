@@ -29,11 +29,11 @@
   "include": [
     "src",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "build/types/**/*.ts",
-    "build/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next/dev",
+    "build"
   ]
 }

@@ -1,24 +1,16 @@
-# Deploying to Render
+# Deploying to Render (Static Site)
 
-The Next.js app is in the **`frontend/`** folder. Use these settings so the build and run work correctly.
+The app is built as a **static export**. Next.js writes output to the **`out`** folder.
 
-## Fix: "Publish directory build does not exist!"
+## Render Static Site settings
 
-The build succeeds; Render is looking for a folder that Next.js doesn’t create.
+1. **Root Directory:** `frontend`
+2. **Build Command:** `npm install && npm run build`
+3. **Publish Directory:** `out`
 
-1. **Root Directory**  
-   Set to **`frontend`** so Render runs all commands from the Next.js app (and uses the right `package-lock.json`).
+Render will run the build from `frontend/`; the build produces `frontend/out/`. Because Root Directory is `frontend`, the Publish Directory is relative to that, so set it to **`out`** (not `frontend/out`).
 
-2. **Publish Directory**  
-   **Leave empty** (or delete the value if it’s set to `build`).  
-   This service is a **Node.js Web Service** that runs `next start`. A “Publish directory” is only for static sites. Next.js puts the build in `.next`, and the server serves it—you don’t publish a folder.
+## Build output
 
-3. **Build command**  
-   `npm install && npm run build`
-
-4. **Start command**  
-   `npm run start`
-
-## Optional: Use the Blueprint
-
-A `render.yaml` in the repo is set up with `rootDir: frontend` and no publish directory. You can create or update the service from the Render dashboard using “New > Blueprint” and connect this repo so these settings apply automatically.
+- `next build` with `output: 'export'` in `frontend/next.config.mjs` generates static files in `frontend/out/`.
+- That folder is what Render serves as your Static Site.
