@@ -177,8 +177,10 @@ export function StressWorkloadForm({ onSubmit, onCancel, variant = 'modal' }: St
 
   if (variant === 'standalone') {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        {card}
+      <div className="h-screen max-h-[100dvh] bg-gray-100 overflow-y-auto overflow-x-hidden">
+        <div className="min-h-full flex justify-center items-center p-4 py-8 shrink-0">
+          {card}
+        </div>
       </div>
     );
   }
