@@ -8,7 +8,6 @@ import { ShortInputField } from '../forms/FormFields';
 import { generateQuestionSet, QuestionSet, Question, TranscriptionQuestion } from '../../types/questionpool';
 
 const LONG_QUESTION_MAX_CHARS = 150;
-const ANALYTICAL_QUESTION_MAX_CHARS = 300;
 
 interface TimedTestProps {
   sessionId: string;
@@ -21,10 +20,10 @@ interface TimedTestProps {
 }
 
 export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
-  // Generate random question set once when component mounts (sessionId for unique analytical-long per test)
+  // Generate random question set once when component mounts
   const questionSet: QuestionSet = useMemo(() => {
-    return generateQuestionSet(3, 4, 4, sessionId); // 4 short, 4 direct long, 4 indirect long + 1 analytical-long per session
-  }, [sessionId]);
+    return generateQuestionSet(3, 4, 4);
+  }, []);
 
   // Get all question IDs for form initialization
   const allQuestionIds = useMemo(() => {
@@ -33,7 +32,6 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       ...questionSet.short.map(q => q.id),
       ...questionSet.directLong.map(q => q.id),
       ...questionSet.indirectLong.map(q => q.id),
-      ...questionSet.analyticalLong.map(q => q.id),
       ...questionSet.transcription.map(q => q.id),
     ];
   }, [questionSet]);
@@ -43,7 +41,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     return [...questionSet.directLong, ...questionSet.indirectLong];
   }, [questionSet]);
 
-  type Step = 'personal' | number | 'analytical-long' | 'transcription' | 'complete';
+  type Step = 'personal' | number | 'transcription' | 'complete';
   const [step, setStep] = useState<Step>('personal');
   const [transcriptionExpanded, setTranscriptionExpanded] = useState(true);
 
@@ -214,11 +212,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     }
     if (typeof step === 'number') {
       if (step + 1 < allLongQuestions.length) setStep(step + 1);
-      else setStep(questionSet.analyticalLong.length > 0 ? 'analytical-long' : 'transcription');
-      return;
-    }
-    if (step === 'analytical-long') {
-      setStep('transcription');
+      else setStep('transcription');
       return;
     }
     if (step === 'transcription') setStep('complete');
@@ -230,8 +224,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
       else setStep(step - 1);
       return;
     }
-    if (step === 'analytical-long') setStep(allLongQuestions.length - 1);
-    if (step === 'transcription') setStep(questionSet.analyticalLong.length > 0 ? 'analytical-long' : allLongQuestions.length - 1);
+    if (step === 'transcription') setStep(allLongQuestions.length - 1);
     if (step === 'complete') setStep('transcription');
   };
 
@@ -430,54 +423,6 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
             <div className="mt-2 text-center text-sm text-gray-500">
               <span className="text-purple-600 font-medium">{value.length}</span>
               <span> / {LONG_QUESTION_MAX_CHARS} characters</span>
-            </div>
-            <div className="mt-6 flex items-center justify-between gap-4">
-              <button type="button" onClick={goBack} className="px-6 py-3 text-gray-700 border-2 border-gray-300 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 min-w-[120px]">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" /></svg>
-                Back
-              </button>
-              <button type="button" onClick={goNext} className="px-6 py-3 bg-purple-600 text-white rounded-xl font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 min-w-[120px]">
-                Next
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-              </button>
-            </div>
-          </div>
-        );
-      })()}
-
-      {step === 'analytical-long' && questionSet.analyticalLong.length > 0 && (() => {
-        const q = questionSet.analyticalLong[0];
-        const value = formData[q.id] || '';
-        return (
-          <div className="min-h-[360px] flex flex-col bg-white rounded-xl border border-gray-200 p-6 sm:p-8">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Analytical</p>
-              <div className="flex items-center gap-2 text-xs text-gray-500 shrink-0">
-                <span className="w-2 h-2 rounded-full bg-purple-500" />
-                <span>KEYSTROKES RECORDING</span>
-              </div>
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">{q.label}</h2>
-            <p className="text-sm text-gray-500 italic mb-4">Write at least 2 sentences. Explain your reasoning.</p>
-            <textarea
-              value={value}
-              onChange={handleInputChange(q.id)}
-              onKeyDown={handleKeyDown}
-              onKeyUp={logKeyUp as any}
-              onBeforeInput={logInputFallback ? (e) => {
-                const n = e.nativeEvent as InputEvent;
-                logInputFallback({ data: n.data, inputType: n.inputType });
-              } : undefined}
-              onFocus={() => handleFieldFocus(q.id)}
-              maxLength={ANALYTICAL_QUESTION_MAX_CHARS}
-              placeholder="Start typing here..."
-              rows={5}
-              disabled={timerExpired}
-              className="w-full min-h-[160px] px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-200 focus:border-purple-500 outline-none transition-all resize-y"
-            />
-            <div className="mt-2 text-center text-sm text-gray-500">
-              <span className="text-purple-600 font-medium">{value.length}</span>
-              <span> / {ANALYTICAL_QUESTION_MAX_CHARS} characters</span>
             </div>
             <div className="mt-6 flex items-center justify-between gap-4">
               <button type="button" onClick={goBack} className="px-6 py-3 text-gray-700 border-2 border-gray-300 rounded-xl font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 min-w-[120px]">

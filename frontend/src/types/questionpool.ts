@@ -27,8 +27,8 @@ export const QUESTION_POOLS = {
     { id: 'location', label: 'Country', type: 'short', category: 'personal' },
     { id: 'education', label: 'Highest Education Level', type: 'short', category: 'personal' },
     { id: 'gender', label: 'Gender', type: 'short', category: 'personal' },
-    { id: 'nativeLanguage', label: 'Mother Tongue', type: 'short', category: 'personal' },
-    { id: 'phone', label: 'What phone do you currently own?', type: 'short', category: 'personal' },
+    { id: 'nativeLanguage', label: 'Native Language', type: 'short', category: 'personal' },
+    { id: 'dailyComputerUsage', label: 'How long do you spend on a computer per day', type: 'short', category: 'personal' },
     { id: 'dominantHand', label: 'Dominant Hand', type: 'short', category: 'personal' },
     { id: 'fieldOfStudy', label: 'Field of Study or Industry', type: 'short', category: 'personal' },
   ] as Question[],
@@ -156,42 +156,7 @@ export interface QuestionSet {
   short: Question[];
   directLong: Question[];
   indirectLong: Question[];
-  /** One analytical-long question per test, unique per session across tests (randomised, no repeat in same session) */
-  analyticalLong: Question[];
   transcription: TranscriptionQuestion[];
-}
-
-const ANALYTICAL_LONG_USED_KEY = 'keystroke_analytical_long_used';
-
-/**
- * Pick one analytical-long question for this test that hasn't been used yet in this session.
- * Stores used question IDs in sessionStorage so Timed/Multitasking/Free each get a different question.
- */
-export function getAnalyticalLongForSession(sessionId: string): Question | null {
-  if (!sessionId || typeof window === 'undefined') return null;
-  const key = `${ANALYTICAL_LONG_USED_KEY}_${sessionId}`;
-  let used: string[] = [];
-  try {
-    const raw = sessionStorage.getItem(key);
-    if (raw) used = JSON.parse(raw) as string[];
-  } catch {
-    used = [];
-  }
-  const pool = QUESTION_POOLS.analyticalLong;
-  const available = pool.filter((q) => !used.includes(q.id));
-  const pickFrom = available.length > 0 ? available : pool;
-  const shuffled = [...pickFrom].sort(() => Math.random() - 0.5);
-  const chosen = shuffled[0];
-  if (chosen) {
-    const nextUsed = used.includes(chosen.id) ? used : [...used, chosen.id];
-    try {
-      sessionStorage.setItem(key, JSON.stringify(nextUsed));
-    } catch {
-      // ignore
-    }
-    return chosen;
-  }
-  return null;
 }
 
 /**
@@ -205,19 +170,13 @@ export function getAnalyticalLongForSession(sessionId: string): Question | null 
 export function generateQuestionSet(
   shortCount: number = 3,
   directLongCount: number = 4,
-  indirectLongCount: number = 4,
-  sessionId?: string
+  indirectLongCount: number = 4
 ): QuestionSet {
-  const analyticalLong = sessionId ? (() => {
-    const q = getAnalyticalLongForSession(sessionId);
-    return q ? [q] : [];
-  })() : [];
   return {
     requiredShort: QUESTION_POOLS.requiredShort, // Always include Full Name
     short: selectRandomQuestions(QUESTION_POOLS.short, shortCount),
     directLong: selectRandomQuestions(QUESTION_POOLS.directLong, directLongCount),
     indirectLong: selectRandomQuestions(QUESTION_POOLS.indirectLong, indirectLongCount),
-    analyticalLong,
     transcription: selectRandomQuestions(QUESTION_POOLS.transcription, 1) as TranscriptionQuestion[], // Select 1 random transcription
   };
 }
@@ -263,7 +222,6 @@ export function generateSeededQuestionSet(
     short: seededSelect(QUESTION_POOLS.short, shortCount),
     directLong: seededSelect(QUESTION_POOLS.directLong, directLongCount),
     indirectLong: seededSelect(QUESTION_POOLS.indirectLong, indirectLongCount),
-    analyticalLong: [], // seeded generator does not use session-scoped analytical long
     transcription: seededSelect(QUESTION_POOLS.transcription, 1) as TranscriptionQuestion[], // Select 1 random transcription
   };
 }
