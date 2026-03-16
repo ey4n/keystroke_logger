@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { KeystrokeEvent } from '../types/keystroke';
 import { KeystrokeAnalytics } from '../hooks/useKeystrokeLogger';
 import { saveKeystrokesNoAuth } from '../services/saveKeystrokes';
+import { saveFormSnapshot } from '../services/saveFormSnapshot';
 import { StressWorkloadForm, StressWorkloadData } from './StressWorkloadForm';
 import { saveStressWorkload } from '../services/saveStressWorkload';
 import { saveLeaderboardEntry } from '../services/saveLeaderboard';
@@ -20,6 +21,16 @@ interface KeystrokeDataDisplayProps {
   getActiveTypingTime?: () => number;
   /** Called when the post-survey is shown or hidden so parent can show full-screen overlay */
   onPostSurveyVisible?: (visible: boolean) => void;
+}
+
+function extractSubmittedFormSnapshot(formData?: Record<string, any>) {
+  if (!formData) return {};
+  if (formData.formSnapshot && typeof formData.formSnapshot === 'object') {
+    return formData.formSnapshot as Record<string, unknown>;
+  }
+
+  const { questionSet, ...snapshot } = formData;
+  return snapshot as Record<string, unknown>;
 }
 
 export function KeystrokeDataDisplay({
@@ -68,6 +79,7 @@ export function KeystrokeDataDisplay({
     try {
       setIsSaving(true);
       setSaveStatus('idle');
+      const submittedFormSnapshot = extractSubmittedFormSnapshot(formData);
 
       // Map events to match the database schema and saveKeystrokes function
       const enrichedEvents = events.map((ev) => ({
@@ -82,7 +94,6 @@ export function KeystrokeDataDisplay({
         fieldName: ev.fieldName,
         elapsedSinceStart: ev.elapsedSinceStart,
         challengeId: ev.challengeId,
-        formSnapshot: formData
       }));
 
       console.log(`Saving ${enrichedEvents.length} keystroke events for session ${sessionId}...`);
@@ -90,6 +101,18 @@ export function KeystrokeDataDisplay({
       // Save keystroke data
       const keystrokeRes = await saveKeystrokesNoAuth(enrichedEvents);
       console.log(`✅ Successfully saved ${keystrokeRes.count} keystroke events!`);
+
+      if (
+        sessionId &&
+        (testType === 'free' || testType === 'timed' || testType === 'multitasking')
+      ) {
+        await saveFormSnapshot({
+          sessionId,
+          testType,
+          formSnapshot: submittedFormSnapshot,
+        });
+        console.log(`✅ Successfully saved submitted form snapshot for ${testType}!`);
+      }
 
       // Save stress/workload data
       await saveStressWorkload(sessionId || '', testType, stressData);

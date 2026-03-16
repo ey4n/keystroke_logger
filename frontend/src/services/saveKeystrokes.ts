@@ -12,7 +12,6 @@ export type KeystrokeEvent = {
   fieldName?: string;
   challengeId?: number | null;
   elapsedSinceStart?: number | null;
-  formSnapshot?: Record<string, unknown>;
 };
 
 export async function saveKeystrokesNoAuth(events: KeystrokeEvent[]) {
@@ -26,7 +25,6 @@ export async function saveKeystrokesNoAuth(events: KeystrokeEvent[]) {
     test_type: e.testType,
     event_type: e.eventType,
     device_info: e.deviceInfo ?? navigator.userAgent,
-    form_snapshot: e.formSnapshot ?? {},
     field_name: e.fieldName ?? null,
     meta: {
       code: e.code,
