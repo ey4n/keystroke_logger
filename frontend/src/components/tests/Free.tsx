@@ -21,6 +21,10 @@ interface FreeTypingTestProps {
 }
 
 export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTypingTestProps) {
+  const permanentShortQuestions = useMemo<Question[]>(() => ([
+    { id: 'age', label: 'Age', type: 'short', category: 'personal' },
+  ]), []);
+
   const questionSet: QuestionSet = useMemo(() => {
     return generateQuestionSet(3, 4, 4);
   }, []);
@@ -30,14 +34,15 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
   }, [questionSet]);
 
   const allQuestionIds = useMemo(() => {
-    return [
+    return Array.from(new Set([
       ...questionSet.requiredShort.map(q => q.id),
+      ...permanentShortQuestions.map(q => q.id),
       ...questionSet.short.map(q => q.id),
       ...questionSet.directLong.map(q => q.id),
       ...questionSet.indirectLong.map(q => q.id),
       ...questionSet.transcription.map(q => q.id),
-    ];
-  }, [questionSet]);
+    ]));
+  }, [permanentShortQuestions, questionSet]);
 
   const [formData, setFormData] = useState<FormData>(() =>
     createInitialFormData(allQuestionIds)
@@ -133,7 +138,11 @@ export function Free({ sessionId, onTestDataUpdate, onFlowComplete }: FreeTyping
 
   // — Personal details: single screen —
   if (step === 'personal') {
-    const allShort = [...questionSet.requiredShort, ...questionSet.short];
+    const allShort = [
+      ...questionSet.requiredShort,
+      ...permanentShortQuestions,
+      ...questionSet.short.filter(q => q.id !== 'age'),
+    ];
     const totalFields = allQuestionIds.length;
     const filledFields = allQuestionIds.filter(id => (formData[id] || '').trim() !== '').length;
     const completionPercentage = Math.round((filledFields / totalFields) * 100);
