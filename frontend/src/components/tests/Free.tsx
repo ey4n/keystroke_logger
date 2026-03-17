@@ -2,9 +2,19 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
+<<<<<<< Updated upstream
 import { FormData, initialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
 import { getQuestionsForTest } from '../../data/questionBanks';
+=======
+import { useActiveTypingTimer } from '../../hooks/useActiveTypingTimer';
+import { FormData, createInitialFormData } from '../../types/formdata';
+import { ShortInputField } from '../forms/FormFields';
+import { generateQuestionSet, QuestionSet, Question, TranscriptionQuestion } from '../../types/questionpool';
+import { computeFormSpellingSummary } from '../../utils/spelling';
+
+const LONG_QUESTION_MAX_CHARS = 150;
+>>>>>>> Stashed changes
 
 interface FreeTypingTestProps {
   sessionId: string;
@@ -27,14 +37,51 @@ export function Free({ sessionId, onTestDataUpdate }: FreeTypingTestProps) {
     setFieldName
   } = useKeystrokeLogger(sessionId);
 
+<<<<<<< Updated upstream
   // Update parent with current data functions and form data
+=======
+  // Initialize active typing timer
+  const typingTimer = useActiveTypingTimer();
+
+  const allQuestionIdsArray = useMemo(
+    () => allQuestionIds.map(String).filter((id) => id !== 'fullName'),
+    [allQuestionIds],
+  );
+
+  const spellingSummary = useMemo(
+    () => computeFormSpellingSummary(formData as any, allQuestionIdsArray),
+    [formData, allQuestionIdsArray],
+  );
+
+>>>>>>> Stashed changes
   useEffect(() => {
     onTestDataUpdate({
       getLogs,
       getAnalytics,
+<<<<<<< Updated upstream
       formData
     });
   }, [formData, getLogs, getAnalytics]);
+=======
+      formData: {
+        ...formData,
+        questionSet,
+        spellingErrorsTotal: spellingSummary.total,
+        spellingErrorsByQuestion: spellingSummary.perQuestion,
+      },
+      getActiveTypingTime: typingTimer.getActiveTime,
+    });
+  }, [
+    formData,
+    getLogs,
+    getAnalytics,
+    onTestDataUpdate,
+    questionSet,
+    typingTimer.getActiveTime,
+    spellingSummary.total,
+    spellingSummary.perQuestion,
+  ]);
+>>>>>>> Stashed changes
 
   const handleInputChange = (field: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>

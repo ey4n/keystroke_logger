@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
 import { FormData, initialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
+<<<<<<< Updated upstream
+=======
+import { generateQuestionSet, QuestionSet } from '../../types/questionpool';
+import { computeFormSpellingSummary } from '../../utils/spelling';
+>>>>>>> Stashed changes
 
 interface ColourTestProps {
   sessionId: string;
@@ -53,6 +58,16 @@ export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
   const filledFields = Object.values(formData).filter(val => val.trim() !== '').length;
   const completionPercentage = Math.round((filledFields / totalFields) * 100);
 
+  const allQuestionIdsArray = useMemo(
+    () => allQuestionIds.map(String).filter((id) => id !== 'fullName'),
+    [allQuestionIds],
+  );
+
+  const spellingSummary = useMemo(
+    () => computeFormSpellingSummary(formData as any, allQuestionIdsArray),
+    [formData, allQuestionIdsArray],
+  );
+
   // Update parent with current data
   useEffect(() => {
     onTestDataUpdate({
@@ -65,9 +80,25 @@ export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
         stressEventsTriggered: stressEventsCountRef.current,
         stressEvents: stressEvents,
         formSnapshot: formData,
+<<<<<<< Updated upstream
       }
     });
   }, [formData, stressEvents, completionPercentage]);
+=======
+        questionSet, // so transcription validation uses the correct reference paragraph
+        spellingErrorsTotal: spellingSummary.total,
+        spellingErrorsByQuestion: spellingSummary.perQuestion,
+      }
+    });
+  }, [
+    formData,
+    stressEvents,
+    completionPercentage,
+    questionSet,
+    spellingSummary.total,
+    spellingSummary.perQuestion,
+  ]);
+>>>>>>> Stashed changes
 
   // Schedule next stress event
   const scheduleNextStressEvent = () => {

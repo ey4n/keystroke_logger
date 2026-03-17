@@ -1,8 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
+<<<<<<< Updated upstream
 import { FormData, initialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
 import { getQuestionsForTest } from '../../data/questionBanks';
+=======
+import { useActiveTypingTimer } from '../../hooks/useActiveTypingTimer';
+import { FormData, createInitialFormData } from '../../types/formdata';
+import { ShortInputField } from '../forms/FormFields';
+import { generateQuestionSet, QuestionSet, Question, TranscriptionQuestion } from '../../types/questionpool';
+import { getTranscriptionPenaltyDetails } from '../../utils/transcriptionValidation';
+import { computeFormSpellingSummary } from '../../utils/spelling';
+
+const LONG_QUESTION_MAX_CHARS = 150;
+>>>>>>> Stashed changes
 
 interface MultitaskingTestProps {
   sessionId: string;
@@ -79,6 +90,86 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     ? Math.round(challengeResults.reduce((sum, r) => sum + r.timeToAnswer, 0) / challengeResults.length)
     : 0;
 
+<<<<<<< Updated upstream
+=======
+  // Form complete only when every field is filled; score: 100 only when complete, -5 per wrong challenge
+  const formComplete = filledFields === totalFields && totalFields > 0;
+  const baseScore = formComplete ? 100 : 0;
+  const challengeScore = Math.max(0, baseScore - wrongChallenges * 5);
+
+  // Transcription penalty (1 pt per error, max 10) so top scoreboard matches leaderboard
+  const transcriptionQuestion = questionSet.transcription[0] as TranscriptionQuestion | undefined;
+  const transcriptionUserText = transcriptionQuestion ? (formData[transcriptionQuestion.id] ?? '') : '';
+  const { penalty: transcriptionPenalty } = transcriptionQuestion
+    ? getTranscriptionPenaltyDetails(transcriptionUserText, transcriptionQuestion.paragraph)
+    : { penalty: 0 };
+  const score = Math.max(0, challengeScore - transcriptionPenalty);
+
+  const allQuestionIdsArray = useMemo(
+    () => allQuestionIds.map(String).filter((id) => id !== 'fullName'),
+    [allQuestionIds],
+  );
+
+  const spellingSummary = useMemo(
+    () => computeFormSpellingSummary(formData as any, allQuestionIdsArray),
+    [formData, allQuestionIdsArray],
+  );
+
+  // Track when challenges appear/disappear to pause/resume typing timer
+  useEffect(() => {
+    if (currentChallenge) {
+      // Challenge appeared, pause typing timer
+      typingTimer.pauseTimer();
+    } else if (hasStarted && !testCompleted) {
+      // Challenge dismissed and test still active, resume typing timer
+      typingTimer.resumeTimer();
+    }
+  }, [currentChallenge, hasStarted, testCompleted, typingTimer]);
+
+  const stopAllChallenges = useCallback(() => {
+    console.log('🛑 Stopping all challenges...');
+    
+    // Clear next challenge timer
+    if (nextChallengeTimerRef.current) {
+      clearTimeout(nextChallengeTimerRef.current);
+      nextChallengeTimerRef.current = null;
+    }
+    
+    // Clear challenge countdown timer
+    if (challengeTimerRef.current) {
+      clearInterval(challengeTimerRef.current);
+      challengeTimerRef.current = null;
+    }
+    
+    // Dismiss current challenge
+    setCurrentChallenge(null);
+    setActiveChallenge(null);
+    setUserAnswer('');
+    setAnswerError(null);
+    setIsFormDisabled(false);
+    isChallengeActiveRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    const handleSaveClicked = () => {
+      console.log('💾 Save clicked - stopping test');
+      setTestCompleted(true);
+      typingTimer.stopTimer();
+      stopAllChallenges();
+    };
+    window.addEventListener('multitasking-test-save-clicked', handleSaveClicked);
+    return () => window.removeEventListener('multitasking-test-save-clicked', handleSaveClicked);
+  }, [typingTimer, stopAllChallenges]);
+
+  // Stop challenges when form is completed
+  useEffect(() => {
+    if (formComplete && !testCompleted) {
+      console.log('✅ Form complete - stopping challenges');
+      stopAllChallenges();
+    }
+  }, [formComplete, testCompleted, stopAllChallenges]);
+
+>>>>>>> Stashed changes
   // Update parent with current data
   useEffect(() => {
     onTestDataUpdate({
@@ -94,9 +185,28 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
         averageResponseTime: avgResponseTime,
         challengeResults: challengeResults,
         formSnapshot: formData,
+<<<<<<< Updated upstream
       }
     });
   }, [formData, completedChallenges, challengeResults, completionPercentage]);
+=======
+        questionSet: questionSet,
+        spellingErrorsTotal: spellingSummary.total,
+        spellingErrorsByQuestion: spellingSummary.perQuestion,
+      },
+      getActiveTypingTime: typingTimer.getActiveTime,
+    });
+  }, [
+    formData,
+    completedChallenges,
+    challengeResults,
+    completionPercentage,
+    challengeScore,
+    typingTimer.getActiveTime,
+    spellingSummary.total,
+    spellingSummary.perQuestion,
+  ]);
+>>>>>>> Stashed changes
 
   // Generate challenges
   const generateChallenge = (): Challenge => {

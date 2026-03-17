@@ -2,9 +2,19 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useKeystrokeLogger } from '../../hooks/useKeystrokeLogger';
+<<<<<<< Updated upstream
 import { FormData, initialFormData } from '../../types/formdata';
 import { DataCollectionForm } from '../forms/DataCollectionForm';
 import { getQuestionsForTest } from '../../data/questionBanks';
+=======
+import { useActiveTypingTimer } from '../../hooks/useActiveTypingTimer';
+import { FormData, createInitialFormData } from '../../types/formdata';
+import { ShortInputField } from '../forms/FormFields';
+import { generateQuestionSet, QuestionSet, Question, TranscriptionQuestion } from '../../types/questionpool';
+import { computeFormSpellingSummary } from '../../utils/spelling';
+
+const LONG_QUESTION_MAX_CHARS = 150;
+>>>>>>> Stashed changes
 
 interface TimedTestProps {
   sessionId: string;
@@ -47,7 +57,19 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
   const incompleteFields = totalFields - filledFields;
   const score = Math.max(0, maxPoints - (incompleteFields * 5));
 
+<<<<<<< Updated upstream
   const categoryQuestions = useMemo(() => getQuestionsForTest(sessionId, 'timed'), [sessionId]);
+=======
+  const allQuestionIdsArray = useMemo(
+    () => allQuestionIds.map(String).filter((id) => id !== 'fullName'),
+    [allQuestionIds],
+  );
+
+  const spellingSummary = useMemo(
+    () => computeFormSpellingSummary(formData as any, allQuestionIdsArray),
+    [formData, allQuestionIdsArray],
+  );
+>>>>>>> Stashed changes
 
   const handleFieldFocus = (fieldName: keyof FormData) => {
       setFieldName(fieldName);
@@ -58,6 +80,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     onTestDataUpdate({
       getLogs,
       getAnalytics,
+<<<<<<< Updated upstream
         formData: {
           timeLimit: 300,
           timeElapsed: elapsedTime,
@@ -72,6 +95,35 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
         }
     });
   }, [formData, timeLeft, timerExpired, elapsedTime, completionPercentage]);
+=======
+      formData: {
+        timeLimit: TOTAL_SECONDS,
+        timeElapsed: elapsedTime,
+        timeRemaining: timeLeft,
+        timerExpired,
+        completionPercentage,
+        filledFields,
+        totalFields,
+        score,
+        maxPoints,
+        formSnapshot: formData,
+        questionSet: questionSet, // Include which questions were shown
+        spellingErrorsTotal: spellingSummary.total,
+        spellingErrorsByQuestion: spellingSummary.perQuestion,
+      },
+      getActiveTypingTime: typingTimer.getActiveTime,
+    });
+  }, [
+    formData,
+    timeLeft,
+    timerExpired,
+    elapsedTime,
+    completionPercentage,
+    typingTimer.getActiveTime,
+    spellingSummary.total,
+    spellingSummary.perQuestion,
+  ]);
+>>>>>>> Stashed changes
 
   // Timer effect
   useEffect(() => {
