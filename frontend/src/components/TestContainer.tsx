@@ -5,13 +5,13 @@ import { TestSelector } from './TestSelector';
 import { Free } from '../components/tests/Free';
 import { TimedTest } from '../components/tests/TimedTest';
 import { MultitaskingTest } from '../components/tests/MultitaskingTest';
-import { LyingTest } from '../components/tests/LyingTest'; 
 import { KeystrokeDataDisplay } from '../components/KeystrokeDataDisplay';
 import { ColourTest } from '../components/tests/Colour';
 import { TestType } from '../types/keystroke';
 
 interface ConsentData {
   consentGiven: boolean;
+  administrationMode?: 'online' | 'in_person';
   deviceType: string;
   primaryLanguage: string;
   languageOther?: string;
@@ -25,7 +25,8 @@ interface TestContainerProps {
 
 export default function TestContainer({ consentData, sessionId: propSessionId }: TestContainerProps = {}) {
   const [currentTest, setCurrentTest] = useState<TestType>('free');
-  const [showData, setShowData] = useState(true);
+  const [showData, setShowData] = useState(false);
+  const [postSurveyVisible, setPostSurveyVisible] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const [dataVersion, setDataVersion] = useState(0);
   
@@ -37,24 +38,27 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
     exportAsCSV: () => void;
     clearLogs: () => void;
     formData?: any;
+    getActiveTypingTime?: () => number;
   } | null>(null);
 
   // Use provided sessionId or generate one
   useEffect(() => {
-    if (propSessionId) {
+    // If parent manages session id, wait until it is ready instead of generating a competing id.
+    if (propSessionId !== undefined) {
+      if (!propSessionId) return;
       setSessionId(propSessionId);
       sessionStorage.setItem('session_id', propSessionId);
-    } else {
-      const stored = sessionStorage.getItem('session_id');
-      if (stored) {
-        setSessionId(stored);
-      } else {
-        const id = globalThis.crypto?.randomUUID?.() ?? `sess_${Date.now()}`;
-        setSessionId(id);
-        sessionStorage.setItem('session_id', id);
-      }
+      return;
     }
-    console.log('Session started:', sessionId || propSessionId);
+
+    const stored = sessionStorage.getItem('session_id');
+    if (stored) {
+      setSessionId(stored);
+    } else {
+      const id = globalThis.crypto?.randomUUID?.() ?? `sess_${Date.now()}`;
+      setSessionId(id);
+      sessionStorage.setItem('session_id', id);
+    }
   }, [propSessionId]);
 
   // Generate new session when requested - clears consent and reloads page
@@ -65,7 +69,23 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
     window.location.reload();
   };
 
-  const handleShowData = () => setShowData(prev => !prev);
+  const handleShowData = () => {
+    setShowData(prev => !prev);
+  };
+
+
+  useEffect(() => {
+    if (!showData) return; 
+
+    if (currentTest === 'timed') {
+      window.dispatchEvent(new CustomEvent('timed-test-save-clicked'));
+    }
+    if (currentTest === 'multitasking') {
+      window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
+    }
+
+    setPostSurveyVisible(true);
+  }, [showData, currentTest]);
 
   // replace your clear handler with:
   const handleClearData = () => {
@@ -88,6 +108,16 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
   const handleTestDataUpdate = useCallback((dataFunctions: any) => {
   setTestDataRef(prev => (prev === dataFunctions ? prev : dataFunctions));
 }, []);
+
+  if (!sessionId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/30 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-md border border-indigo-100 px-6 py-5 text-gray-700">
+          Initializing session...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/30">
@@ -142,6 +172,7 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
             <Free
               sessionId={sessionId}
               onTestDataUpdate={handleTestDataUpdate}
+              onFlowComplete={() => setShowData(true)}
             />
           )}
           
@@ -176,22 +207,26 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={showData ? "M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"} />
             </svg>
-            <span>{showData ? 'Hide Data' : 'Show All Data'}</span>
+            <span>{showData ? '' : 'End Test'}</span>
           </button>
         </div>
 
-        {/* Data Display */}
+        {/* Data Display: full-screen overlay when post-survey is shown, otherwise in-flow below */}
         {showData && testDataRef && (
-          <KeystrokeDataDisplay
-            key={`${currentTest}-${sessionId}-${dataVersion}`}
-            events={testDataRef.getLogs()}
-            analytics={testDataRef.getAnalytics()}
-            onExportJSON={testDataRef.exportAsJSON}
-            onExportCSV={testDataRef.exportAsCSV}
-            testType={currentTest}
-            sessionId={sessionId}
-            formData={testDataRef.formData}
-          />
+          <div className={postSurveyVisible ? 'fixed inset-0 z-50 bg-gray-100 flex items-center justify-center p-4' : ''}>
+            <KeystrokeDataDisplay
+              key={`${currentTest}-${sessionId}-${dataVersion}`}
+              events={testDataRef.getLogs()}
+              analytics={testDataRef.getAnalytics()}
+              onExportJSON={testDataRef.exportAsJSON}
+              onExportCSV={testDataRef.exportAsCSV}
+              testType={currentTest}
+              sessionId={sessionId}
+              formData={testDataRef.formData}
+              getActiveTypingTime={testDataRef.getActiveTypingTime}
+              onPostSurveyVisible={setPostSurveyVisible}
+            />
+          </div>
         )}
 
         {/* Footer Info - Improved */}
@@ -204,9 +239,12 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
               <span>All data is securely captured with your session ID</span>
             </div>
             {consentData && (
-              <div className="flex items-center gap-2 text-xs">
+              <div className="flex items-center gap-2 text-xs flex-wrap">
                 <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded">Device: {consentData.deviceType}</span>
                 <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded">Browser: {consentData.browser}</span>
+                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                  {consentData.administrationMode === 'in_person' ? 'In person (supervised)' : 'Online (unsupervised)'}
+                </span>
               </div>
             )}
           </div>

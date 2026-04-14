@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { KeystrokeEvent } from '../types/keystroke';
 import { KeystrokeAnalytics } from '../hooks/useKeystrokeLogger';
 import { saveKeystrokesNoAuth } from '../services/saveKeystrokes';
+import { saveFormSnapshot } from '../services/saveFormSnapshot';
 import { StressWorkloadForm, StressWorkloadData } from './StressWorkloadForm';
 import { saveStressWorkload } from '../services/saveStressWorkload';
 import { saveLeaderboardEntry } from '../services/saveLeaderboard';
+import { saveTimings } from '../services/saveTimings';
 import { Leaderboard } from './Leaderboard';
-import { calculateTranscriptionPenalty } from '../utils/transcriptionValidation';
+import { getTranscriptionPenaltyDetails, getTranscriptionErrorExplanation } from '../utils/transcriptionValidation';
+import {
+  predictStressFromBaseline,
+  StressPredictionResult,
+  computeModelMetricsFromEvents,
+} from '../services/stressPrediction';
 
 interface KeystrokeDataDisplayProps {
   events: KeystrokeEvent[];
@@ -16,6 +23,19 @@ interface KeystrokeDataDisplayProps {
   testType?: string;
   sessionId?: string;
   formData?: Record<string, any>;
+  getActiveTypingTime?: () => number;
+  /** Called when the post-survey is shown or hidden so parent can show full-screen overlay */
+  onPostSurveyVisible?: (visible: boolean) => void;
+}
+
+function extractSubmittedFormSnapshot(formData?: Record<string, any>) {
+  if (!formData) return {};
+  if (formData.formSnapshot && typeof formData.formSnapshot === 'object') {
+    return formData.formSnapshot as Record<string, unknown>;
+  }
+
+  const { questionSet, ...snapshot } = formData;
+  return snapshot as Record<string, unknown>;
 }
 
 export function KeystrokeDataDisplay({
@@ -26,33 +46,55 @@ export function KeystrokeDataDisplay({
   testType = 'unknown',
   sessionId,
   formData,
+  getActiveTypingTime,
+  onPostSurveyVisible,
 }: KeystrokeDataDisplayProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showStressForm, setShowStressForm] = useState(false);
+  const [postSurveyCompleted, setPostSurveyCompleted] = useState(false);
+  const [stressPrediction, setStressPrediction] = useState<StressPredictionResult | null>(null);
+
+  // When user submits post-survey, tell parent to hide full-screen overlay and show data in flow
+  useEffect(() => {
+    if (postSurveyCompleted) {
+      onPostSurveyVisible?.(false);
+    }
+  }, [postSurveyCompleted, onPostSurveyVisible]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [dataDeepDiveView, setDataDeepDiveView] = useState<'summary' | 'advanced'>('summary');
+  const resolvedSessionId = sessionId || events[0]?.sessionId || '';
 
   async function handleSaveToSupabase() {
     if (events.length === 0) {
       alert('No keystroke data to save!');
       return;
     }
-
-    // Stop challenges for multitasking test
     if (testType === 'multitasking') {
       window.dispatchEvent(new CustomEvent('multitasking-test-save-clicked'));
     }
-
-    // Show stress form first
+    if (testType === 'timed') {
+      window.dispatchEvent(new CustomEvent('timed-test-save-clicked'));
+    }
     setShowStressForm(true);
   }
 
   async function handleStressFormSubmit(stressData: StressWorkloadData) {
     setShowStressForm(false);
+    setPostSurveyCompleted(true);
+    setStressPrediction(null);
+    if (events.length === 0) {
+      setSaveStatus('error');
+      alert(
+        'No keystroke events were captured for this test, so data was not saved. Please complete the test again in the same session and click End Test once.'
+      );
+      return;
+    }
     
     try {
       setIsSaving(true);
       setSaveStatus('idle');
+      const submittedFormSnapshot = extractSubmittedFormSnapshot(formData);
 
       // Map events to match the database schema and saveKeystrokes function
       const enrichedEvents = events.map((ev) => ({
@@ -67,25 +109,99 @@ export function KeystrokeDataDisplay({
         fieldName: ev.fieldName,
         elapsedSinceStart: ev.elapsedSinceStart,
         challengeId: ev.challengeId,
-        formSnapshot: formData
       }));
 
-      console.log(`Saving ${enrichedEvents.length} keystroke events for session ${sessionId}...`);
+      console.log(`Saving ${enrichedEvents.length} keystroke events for session ${resolvedSessionId}...`);
       
       // Save keystroke data
       const keystrokeRes = await saveKeystrokesNoAuth(enrichedEvents);
       console.log(`✅ Successfully saved ${keystrokeRes.count} keystroke events!`);
 
       // Save stress/workload data
-      await saveStressWorkload(sessionId || '', testType, stressData);
+      await saveStressWorkload(resolvedSessionId, testType, stressData);
       console.log(`✅ Successfully saved stress/workload data!`);
 
-      // Validate transcription and calculate penalty
+      if (getActiveTypingTime && (testType === 'free' || testType === 'timed' || testType === 'multitasking')) {
+      try {
+          const activeTime = getActiveTypingTime();
+          console.log(`🔵 Active typing time: ${activeTime}ms (${(activeTime / 1000).toFixed(2)}s)`);
+          
+          if (activeTime > 0) {
+            await saveTimings({
+              sessionId: resolvedSessionId,
+              testType: testType as 'free' | 'timed' | 'multitasking',
+              timing: activeTime,
+            });
+            console.log(`✅ Successfully saved active typing time: ${(activeTime / 1000).toFixed(2)}s`);
+          } else {
+            console.warn('⚠️ Active typing time is 0, skipping save');
+          }
+        } catch (timingError) {
+          console.error('❌ Error saving timing data:', timingError);
+          // Don't fail the whole save if timing fails
+        }
+      } else {
+        console.warn('⚠️ getActiveTypingTime function not available or test type not supported for timing');
+      }
+
+      let predictionResult: StressPredictionResult | null = null;
+      if ((testType === 'timed' || testType === 'multitasking') && resolvedSessionId) {
+        try {
+          predictionResult = await predictStressFromBaseline({
+            sessionId: resolvedSessionId,
+            testType: testType as 'timed' | 'multitasking',
+            currentEvents: enrichedEvents,
+          });
+          setStressPrediction(predictionResult);
+          console.log(`🧠 Stress prediction: ${predictionResult.status}`);
+        } catch (predictionError) {
+          console.error('❌ Error while predicting stress:', predictionError);
+          setStressPrediction({
+            status: 'insufficient_data',
+            reason:
+              predictionError instanceof Error
+                ? `Stress prediction unavailable: ${predictionError.message}`
+                : 'Stress prediction could not be computed for this submission.',
+          });
+        }
+      }
+
+      const snapshotWithBaseline =
+        testType === 'free'
+          ? {
+              ...submittedFormSnapshot,
+              keystroke_baseline_metrics: computeModelMetricsFromEvents(enrichedEvents),
+            }
+          : submittedFormSnapshot;
+
+      if (
+        resolvedSessionId &&
+        (testType === 'free' || testType === 'timed' || testType === 'multitasking')
+      ) {
+        await saveFormSnapshot({
+          sessionId: resolvedSessionId,
+          testType,
+          formSnapshot:
+            predictionResult && (testType === 'timed' || testType === 'multitasking')
+              ? {
+                  ...snapshotWithBaseline,
+                  stress_prediction: predictionResult,
+                }
+              : snapshotWithBaseline,
+        });
+        console.log(`✅ Successfully saved submitted form snapshot for ${testType}!`);
+      }
+
+      // Validate transcription and calculate penalty (use the paragraph that was actually shown)
       const transcriptionText = formData?.formSnapshot?.transcription || formData?.transcription || '';
-      const transcriptionPenalty = calculateTranscriptionPenalty(transcriptionText);
+      const transcriptionReference = formData?.questionSet?.transcription?.[0]?.paragraph;
+      const { errorCount: transcriptionErrorCount, penalty: transcriptionPenalty } = getTranscriptionPenaltyDetails(
+        transcriptionText,
+        transcriptionReference
+      );
       
       if (transcriptionPenalty > 0) {
-        console.log(`⚠️ Transcription validation failed. Deducting ${transcriptionPenalty} points.`);
+        console.log(`⚠️ Transcription validation: ${transcriptionErrorCount} error(s), ${transcriptionPenalty} points deducted.`);
       } else {
         console.log(`✅ Transcription validation passed!`);
       }
@@ -101,14 +217,14 @@ export function KeystrokeDataDisplay({
             const finalScore = Math.max(0, baseScore - transcriptionPenalty);
             const timeTaken = formData.timeElapsed || 0; // Time in seconds
             
-            // Note: Timed test leaderboard uses time, but we can store score too if needed
             await saveLeaderboardEntry({
               userName,
               testType: 'timed',
+              score: finalScore,
               timeTaken,
-              sessionId: sessionId || '',
+              sessionId: resolvedSessionId,
             });
-            console.log(`✅ Saved leaderboard entry for timed test: ${timeTaken}s (score: ${finalScore} after transcription penalty)`);
+            console.log(`✅ Saved leaderboard entry for timed test: ${finalScore} pts, ${timeTaken}s (score: ${finalScore} after transcription penalty)`);
           } else if (testType === 'multitasking') {
             // For multitasking test, apply transcription penalty to score
             const baseScore = formData.score !== undefined ? formData.score : 0;
@@ -119,7 +235,7 @@ export function KeystrokeDataDisplay({
               userName,
               testType: 'multitasking',
               score: finalScore,
-              sessionId: sessionId || '',
+              sessionId: resolvedSessionId,
             });
             console.log(`✅ Saved leaderboard entry for multitasking test: ${finalScore} points (${baseScore} - ${transcriptionPenalty} transcription penalty)`);
           }
@@ -134,24 +250,22 @@ export function KeystrokeDataDisplay({
       // Show transcription validation result
       let saveMessage = `✅ Saved ${keystrokeRes.count} keystrokes and stress/workload data to Supabase`;
       if (transcriptionPenalty > 0) {
-        saveMessage += `\n⚠️ Transcription validation: ${transcriptionPenalty} points deducted due to errors.`;
+        const transcriptionWhy = getTranscriptionErrorExplanation(transcriptionText, transcriptionReference);
+        saveMessage += `\n⚠️ Transcription validation: ${transcriptionErrorCount} error(s), ${transcriptionPenalty} point(s) deducted.`;
+        if (transcriptionWhy) saveMessage += `\n\nWhy: ${transcriptionWhy}`;
       } else if (transcriptionText.trim() !== '') {
         saveMessage += `\n✅ Transcription validation: Perfect! No errors found.`;
       }
       
-      // Show leaderboard for timed and multitasking tests
-      if (testType === 'timed' || testType === 'multitasking') {
+      // Show results view for timed, multitasking, and free tests
+      if (testType === 'timed' || testType === 'multitasking' || testType === 'free') {
         setShowLeaderboard(true);
-        // Show alert with transcription result
-        if (transcriptionPenalty > 0) {
+        if (transcriptionPenalty > 0 && (testType === 'timed' || testType === 'multitasking')) {
           alert(saveMessage);
         }
-        // Scroll to leaderboard
         setTimeout(() => {
-          const leaderboardElement = document.querySelector('[data-leaderboard]');
-          if (leaderboardElement) {
-            leaderboardElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+          const resultsEl = document.querySelector('[data-leaderboard]');
+          if (resultsEl) resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
       } else {
         alert(saveMessage);
@@ -174,9 +288,14 @@ export function KeystrokeDataDisplay({
   let currentScore = formData?.score;
   const currentTime = formData?.timeElapsed;
   
-  // Calculate transcription validation for leaderboard display
+  // Calculate transcription validation for leaderboard display (use the paragraph that was shown)
   const transcriptionText = formData?.formSnapshot?.transcription || formData?.transcription || '';
-  const transcriptionPenalty = calculateTranscriptionPenalty(transcriptionText);
+  const transcriptionReference = formData?.questionSet?.transcription?.[0]?.paragraph;
+  const { errorCount: transcriptionErrorCount, penalty: transcriptionPenalty } = getTranscriptionPenaltyDetails(
+    transcriptionText,
+    transcriptionReference
+  );
+  const transcriptionErrorExplanation = getTranscriptionErrorExplanation(transcriptionText, transcriptionReference);
   const hasTranscriptionError = transcriptionPenalty > 0;
   
   // Apply transcription penalty to current score for display
@@ -184,9 +303,21 @@ export function KeystrokeDataDisplay({
     currentScore = Math.max(0, currentScore - transcriptionPenalty);
   }
 
+  // End Test → show post-survey as single centered box (like initial consent page); after submit → data screen
+  if (!postSurveyCompleted) {
+    return (
+      <StressWorkloadForm
+        variant="standalone"
+        onSubmit={handleStressFormSubmit}
+        onCancel={() => setPostSurveyCompleted(true)}
+        hideMoreStressedThanBaseline={testType === 'free'}
+      />
+    );
+  }
+
   return (
     <>
-      {/* Stress/Workload Form Modal */}
+      {/* Stress form modal (only when opened via legacy Submit Form button, e.g. colour test) */}
       {showStressForm && (
         <StressWorkloadForm
           onSubmit={handleStressFormSubmit}
@@ -194,43 +325,265 @@ export function KeystrokeDataDisplay({
         />
       )}
 
-      {/* Leaderboard - shown after successful save for timed/multitasking tests */}
-      {showLeaderboard && (testType === 'timed' || testType === 'multitasking') && (
-        <div data-leaderboard>
-          <div className={`mb-4 p-4 border-2 rounded-lg ${
-            hasTranscriptionError 
-              ? 'bg-yellow-50 border-yellow-300' 
-              : 'bg-green-50 border-green-300'
-          }`}>
-            <div className="flex items-center gap-2">
-              {hasTranscriptionError ? (
-                <>
-                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <p className="text-yellow-800 font-medium">
-                    ✅ Successfully saved! ⚠️ Transcription had errors: -{transcriptionPenalty} points deducted. Check the leaderboard below!
+      {/* Results - shown after post-survey submit for timed, multitasking, and free tests */}
+      {showLeaderboard && (testType === 'timed' || testType === 'multitasking' || testType === 'free') && (
+        <div data-leaderboard className="space-y-6">
+          {/* Success banner */}
+          <div className="p-5 rounded-xl bg-green-50 border border-green-200">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-green-900">Successfully Saved!</p>
+                <p className="text-sm text-green-800 mt-0.5">
+                  Your performance data has been synchronized with the research database.
+                </p>
+                {hasTranscriptionError && (testType === 'timed' || testType === 'multitasking') && (
+                  <p className="text-sm text-amber-700 mt-2">
+                    Note: Transcription had {transcriptionErrorCount} error(s); {transcriptionPenalty} point(s) deducted from score.
+                    {transcriptionErrorExplanation && ` ${transcriptionErrorExplanation}`}
                   </p>
-                </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Leaderboard only for timed and multitasking */}
+          {(testType === 'timed' || testType === 'multitasking') && (
+            <Leaderboard
+              testType={testType as 'timed' | 'multitasking'}
+              currentUserName={userName}
+              currentScore={currentScore}
+              currentTime={currentTime}
+              sessionId={sessionId}
+            />
+          )}
+
+          {(testType === 'timed' || testType === 'multitasking') && stressPrediction && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Stress Prediction (vs free baseline)
+              </h3>
+              {stressPrediction.baselineModel && stressPrediction.changeOnlyModel ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-900">
+                    <span className="font-semibold">Stress with respect to baseline:</span>{' '}
+                    {stressPrediction.baselineModel.status === 'stressed' ? 'Stressed' : 'Not stressed'}{' '}
+                    ({(stressPrediction.baselineModel.confidence * 100).toFixed(0)}%)
+                  </p>
+                  <p className="text-sm text-gray-900">
+                    <span className="font-semibold">Stress with respect to baseline (%change):</span>{' '}
+                    {stressPrediction.changeOnlyModel.status === 'stressed' ? 'Stressed' : 'Not stressed'}{' '}
+                    ({(stressPrediction.changeOnlyModel.confidence * 100).toFixed(0)}%)
+                  </p>
+                </div>
               ) : (
                 <>
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-green-800 font-medium">
-                    ✅ Successfully saved! ✅ Perfect transcription! Check out the leaderboard below to see how you rank!
-                  </p>
+                  <div className="text-lg font-semibold text-gray-900">
+                    {stressPrediction.status === 'stressed' && 'Stressed'}
+                    {stressPrediction.status === 'not_stressed' && 'Not stressed'}
+                    {stressPrediction.status === 'no_baseline' && 'No baseline found'}
+                    {stressPrediction.status === 'insufficient_data' && 'Insufficient data'}
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">{stressPrediction.reason}</p>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Data Deep Dive: Total events, Avg speed, Test duration + optional table */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Data deep dive</h3>
+              <div className="flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => setDataDeepDiveView('summary')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    dataDeepDiveView === 'summary' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Summary
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDataDeepDiveView('advanced')}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    dataDeepDiveView === 'advanced' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Advanced
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              {analytics && events.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  <div className="p-4 rounded-xl border border-gray-200 bg-gray-50/50">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total events</div>
+                    <div className="text-2xl font-bold text-gray-900">{analytics.totalEvents}</div>
+                    <div className="mt-2 h-1 w-16 rounded-full bg-purple-200 overflow-hidden">
+                      <div className="h-full bg-purple-500 rounded-full" style={{ width: `${Math.min(100, (analytics.totalEvents / 200) * 100)}%` }} />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-gray-200 bg-gray-50/50">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Avg speed</div>
+                    <div className="text-2xl font-bold text-gray-900">{analytics.averageSpeed} KPM</div>
+                    <div className="mt-2 h-1 w-16 rounded-full bg-blue-200 overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, (analytics.averageSpeed / 150) * 100)}%` }} />
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl border border-gray-200 bg-gray-50/50">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Test duration</div>
+                    <div className="text-2xl font-bold text-gray-900">{(analytics.duration / 1000).toFixed(1)}s</div>
+                    <div className="mt-2 h-1 w-full rounded-full bg-purple-200 overflow-hidden">
+                      <div className="h-full bg-purple-500 rounded-full" style={{ width: '85%' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {dataDeepDiveView === 'advanced' && analytics && events.length > 0 && (
+                <>
+                  {/* Advanced metrics grid */}
+                  <div className="mb-6">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Advanced metrics</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {'holdDurationAvgMs' in analytics && (
+                        <>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Hold duration (avg)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.holdDurationAvgMs} ms</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Hold duration (min–max)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.holdDurationMinMs} – {analytics.holdDurationMaxMs} ms</div>
+                          </div>
+                        </>
+                      )}
+                      {'interKeyIntervalAvgMs' in analytics && (
+                        <>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Inter-key interval (avg)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.interKeyIntervalAvgMs} ms</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Inter-key (median)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.interKeyIntervalMedianMs} ms</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Inter-key (std)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.interKeyIntervalStdMs} ms</div>
+                          </div>
+                        </>
+                      )}
+                      {'pauseCount' in analytics && (
+                        <>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Pause count (&gt;500 ms)</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.pauseCount}</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Total pause time</div>
+                            <div className="text-lg font-semibold text-gray-900">{(analytics.totalPauseTimeMs / 1000).toFixed(1)} s</div>
+                          </div>
+                          <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide">Longest pause</div>
+                            <div className="text-lg font-semibold text-gray-900">{analytics.longestPauseMs} ms</div>
+                          </div>
+                        </>
+                      )}
+                      {'backspaceRate' in analytics && (
+                        <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Backspace rate</div>
+                          <div className="text-lg font-semibold text-gray-900">{(analytics.backspaceRate * 100).toFixed(1)}%</div>
+                        </div>
+                      )}
+                      {'rollingKPM30s' in analytics && (
+                        <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Rolling KPM (30 s)</div>
+                          <div className="text-lg font-semibold text-gray-900">{analytics.rollingKPM30s}</div>
+                        </div>
+                      )}
+                      {'typingRhythmConsistencyMs' in analytics && (
+                        <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Rhythm consistency (std)</div>
+                          <div className="text-lg font-semibold text-gray-900">{analytics.typingRhythmConsistencyMs} ms</div>
+                        </div>
+                      )}
+                      {getActiveTypingTime && (
+                        <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                          <div className="text-xs text-gray-500 uppercase tracking-wide">Active typing time</div>
+                          <div className="text-lg font-semibold text-gray-900">{((getActiveTypingTime() || 0) / 1000).toFixed(1)} s</div>
+                        </div>
+                      )}
+                    </div>
+                    {'perField' in analytics && analytics.perField && Object.keys(analytics.perField).length > 0 && (
+                      <div className="mt-4 p-3 rounded-lg border border-gray-200 bg-gray-50/50">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Per-field</div>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="text-left text-gray-500 border-b border-gray-200">
+                                <th className="pb-1.5 pr-3">Field</th>
+                                <th className="pb-1.5 pr-3">Events</th>
+                                <th className="pb-1.5">Duration</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Object.entries(analytics.perField).map(([field, stats]) => (
+                                <tr key={field} className="border-b border-gray-100">
+                                  <td className="py-1 pr-3 font-mono text-gray-800">{field === '_unknown_' ? '(unknown)' : field}</td>
+                                  <td className="py-1 pr-3">{stats.eventCount}</td>
+                                  <td className="py-1">{(stats.durationMs / 1000).toFixed(1)} s</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200">
+                  <table className="w-full text-sm border-collapse">
+                    <thead className="bg-gray-100 sticky top-0">
+                      <tr>
+                        <th className="p-2 text-left font-semibold text-gray-700">#</th>
+                        <th className="p-2 text-left font-semibold text-gray-700">Event</th>
+                        <th className="p-2 text-left font-semibold text-gray-700">Key</th>
+                        <th className="p-2 text-left font-semibold text-gray-700">Code</th>
+                        <th className="p-2 text-left font-semibold text-gray-700">Field</th>
+                        <th className="p-2 text-left font-semibold text-gray-700">Elapsed (ms)</th>
+                        <th className="p-2 text-left font-semibold text-gray-700">Timestamp</th>
+                        <th className="p-2 text-left font-semibold text-gray-700">Device Info</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {events.map((e, index) => (
+                        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="p-2">{index + 1}</td>
+                          <td className="p-2">
+                            <span className={e.eventType === 'keydown' ? 'text-green-600' : 'text-blue-600'}>
+                              {e.eventType}
+                            </span>
+                          </td>
+                          <td className="p-2 font-mono">{e.key}</td>
+                          <td className="p-2 font-mono text-xs">{e.code}</td>
+                          <td className="p-2 text-xs text-gray-600">{e.fieldName ?? '-'}</td>
+                          <td className="p-2 text-xs text-gray-600">{e.elapsedSinceStart ?? '-'}</td>
+                          <td className="p-2 font-mono text-xs">{e.timestamp}</td>
+                          <td className="p-2 text-[10px] text-gray-500 truncate max-w-[160px]">{e.deviceInfo ?? '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
                 </>
               )}
             </div>
           </div>
-          <Leaderboard
-            testType={testType as 'timed' | 'multitasking'}
-            currentUserName={userName}
-            currentScore={currentScore}
-            currentTime={currentTime}
-            sessionId={sessionId}
-          />
         </div>
       )}
 
@@ -242,31 +595,28 @@ export function KeystrokeDataDisplay({
             Keystroke Data ({events.length} events)
           </h2>
 
-          {/* Action Buttons */}
+          {/* After post-survey we already saved; show status only (no "Submit Form" button) */}
           {events.length > 0 && (
             <div className="flex items-center gap-2">
-              <button
-                onClick={handleSaveToSupabase}
-                disabled={isSaving}
-                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                  isSaving 
-                    ? 'bg-gray-400 cursor-not-allowed text-white' 
-                    : 'bg-green-600 hover:bg-green-700 text-white'
-                }`}
-              >
-                {isSaving ? 'Saving…' : '💾 Save to Supabase'}
-              </button>
-              
-              {saveStatus === 'success' && (
+              {isSaving && (
+                <span className="text-gray-600 font-medium text-sm">Saving…</span>
+              )}
+              {saveStatus === 'success' && !isSaving && (
                 <span className="text-green-600 font-medium text-sm">
-                  ✓ Saved!
+                  ✓ Submitted!
                 </span>
               )}
-              
-              {saveStatus === 'error' && (
-                <span className="text-red-600 font-medium text-sm">
-                  ✗ Failed
-                </span>
+              {saveStatus === 'error' && !isSaving && (
+                <>
+                  <span className="text-red-600 font-medium text-sm">✗ Failed</span>
+                  <button
+                    onClick={handleSaveToSupabase}
+                    disabled={isSaving}
+                    className="px-6 py-2 rounded-lg font-medium bg-green-600 hover:bg-green-700 text-white transition-colors"
+                  >
+                    Retry save
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -284,8 +634,8 @@ export function KeystrokeDataDisplay({
           </div>
         )}
 
-        {/* ===== ANALYTICS SUMMARY ===== */}
-        {analytics && events.length > 0 && (
+        {/* ===== ANALYTICS SUMMARY (only when not in post-save results view) ===== */}
+        {!(showLeaderboard && (testType === 'timed' || testType === 'multitasking' || testType === 'free')) && analytics && events.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <div className="bg-white p-3 rounded border border-gray-200">
               <div className="text-xs text-gray-600">Total Events</div>
@@ -315,60 +665,62 @@ export function KeystrokeDataDisplay({
         )}
         </div>
 
-        {/* ===== DATA TABLE ===== */}
-        <div className="max-h-96 overflow-y-auto">
-        {events.length === 0 ? (
-          <p className="text-gray-500 italic">No data captured yet. Start typing!</p>
-        ) : (
-          <table className="w-full text-sm border-collapse">
-            <thead className="bg-gray-200 sticky top-0">
-              <tr>
-                <th className="p-2 text-left font-semibold">#</th>
-                <th className="p-2 text-left font-semibold">Event</th>
-                <th className="p-2 text-left font-semibold">Key</th>
-                <th className="p-2 text-left font-semibold">Code</th>
-                <th className="p-2 text-left font-semibold">Field</th>
-                <th className="p-2 text-left font-semibold">Elapsed (ms)</th>
-                <th className="p-2 text-left font-semibold">Timestamp</th>
-                <th className="p-2 text-left font-semibold">Device Info</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((e, index) => (
-                <tr
-                  key={index}
-                  className="border-b border-gray-200 hover:bg-gray-100"
-                >
-                  <td className="p-2">{index + 1}</td>
-                  <td className="p-2">
-                    <span
-                      className={
-                        e.eventType === 'keydown'
-                          ? 'text-green-600'
-                          : 'text-blue-600'
-                      }
+        {/* ===== DATA TABLE (only when not in post-save results view; table is in Data Deep Dive > Advanced for timed/multitasking/free) ===== */}
+        {!(showLeaderboard && (testType === 'timed' || testType === 'multitasking' || testType === 'free')) && (
+          <div className="max-h-96 overflow-y-auto">
+            {events.length === 0 ? (
+              <p className="text-gray-500 italic">No data captured yet. Start typing!</p>
+            ) : (
+              <table className="w-full text-sm border-collapse">
+                <thead className="bg-gray-200 sticky top-0">
+                  <tr>
+                    <th className="p-2 text-left font-semibold">#</th>
+                    <th className="p-2 text-left font-semibold">Event</th>
+                    <th className="p-2 text-left font-semibold">Key</th>
+                    <th className="p-2 text-left font-semibold">Code</th>
+                    <th className="p-2 text-left font-semibold">Field</th>
+                    <th className="p-2 text-left font-semibold">Elapsed (ms)</th>
+                    <th className="p-2 text-left font-semibold">Timestamp</th>
+                    <th className="p-2 text-left font-semibold">Device Info</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.map((e, index) => (
+                    <tr
+                      key={index}
+                      className="border-b border-gray-200 hover:bg-gray-100"
                     >
-                      {e.eventType}
-                    </span>
-                  </td>
-                  <td className="p-2 font-mono">{e.key}</td>
-                  <td className="p-2 font-mono text-xs">{e.code}</td>
-                  <td className="p-2 text-xs text-gray-700">
-                    {e.fieldName ?? '-'}
-                  </td>
-                  <td className="p-2 text-xs text-gray-700">
-                    {e.elapsedSinceStart ?? '-'}
-                  </td>
-                  <td className="p-2 font-mono text-xs">{e.timestamp}</td>
-                  <td className="p-2 text-[10px] text-gray-600 truncate max-w-[180px]">
-                    {e.deviceInfo ?? '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      <td className="p-2">{index + 1}</td>
+                      <td className="p-2">
+                        <span
+                          className={
+                            e.eventType === 'keydown'
+                              ? 'text-green-600'
+                              : 'text-blue-600'
+                          }
+                        >
+                          {e.eventType}
+                        </span>
+                      </td>
+                      <td className="p-2 font-mono">{e.key}</td>
+                      <td className="p-2 font-mono text-xs">{e.code}</td>
+                      <td className="p-2 text-xs text-gray-700">
+                        {e.fieldName ?? '-'}
+                      </td>
+                      <td className="p-2 text-xs text-gray-700">
+                        {e.elapsedSinceStart ?? '-'}
+                      </td>
+                      <td className="p-2 font-mono text-xs">{e.timestamp}</td>
+                      <td className="p-2 text-[10px] text-gray-600 truncate max-w-[180px]">
+                        {e.deviceInfo ?? '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         )}
-        </div>
       </div>
     </>
   );

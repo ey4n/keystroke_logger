@@ -61,3 +61,36 @@ Data is stored in Supabase with the following structure:
 - multitasking test -> save the time when the challenge is given so that we can monitor if there is a difference at that specific time
 - sorry the reloading thing may be quite annoying lawl
 - the stupid questions... will change soon
+
+## Real Stress Model Inference (`.pkl`)
+
+The frontend now calls a local Python inference API that loads your provided models:
+
+- `stress_model_change_only.pkl`
+- `stress_model_baseline.pkl`
+
+### 1) Start the frontend
+
+```bash
+cd frontend
+npm run dev -- -p 3001
+```
+
+### 2) Start the model API (new terminal)
+
+```bash
+cd /Users/paramsrini/keystroke_logger
+python3 -m venv .venv-model
+source .venv-model/bin/activate
+pip install -r backend/requirements-model-api.txt
+uvicorn backend.model_inference_api:app --host 127.0.0.1 --port 8000
+```
+
+### 3) Optional env vars for model paths
+
+If your model files move, set:
+
+- `STRESS_MODEL_BASELINE_PATH`
+- `STRESS_MODEL_CHANGE_ONLY_PATH`
+
+before running `uvicorn`.
