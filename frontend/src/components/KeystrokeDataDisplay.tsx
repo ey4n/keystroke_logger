@@ -9,6 +9,11 @@ import { saveLeaderboardEntry } from '../services/saveLeaderboard';
 import { saveTimings } from '../services/saveTimings';
 import { Leaderboard } from './Leaderboard';
 import { getTranscriptionPenaltyDetails, getTranscriptionErrorExplanation } from '../utils/transcriptionValidation';
+import {
+  predictStressFromBaseline,
+  StressPredictionResult,
+  computeModelMetricsFromEvents,
+} from '../services/stressPrediction';
 
 interface KeystrokeDataDisplayProps {
   events: KeystrokeEvent[];
@@ -48,6 +53,7 @@ export function KeystrokeDataDisplay({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showStressForm, setShowStressForm] = useState(false);
   const [postSurveyCompleted, setPostSurveyCompleted] = useState(false);
+  const [stressPrediction, setStressPrediction] = useState<StressPredictionResult | null>(null);
 
   // When user submits post-survey, tell parent to hide full-screen overlay and show data in flow
   useEffect(() => {
@@ -57,6 +63,7 @@ export function KeystrokeDataDisplay({
   }, [postSurveyCompleted, onPostSurveyVisible]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [dataDeepDiveView, setDataDeepDiveView] = useState<'summary' | 'advanced'>('summary');
+  const resolvedSessionId = sessionId || events[0]?.sessionId || '';
 
   async function handleSaveToSupabase() {
     if (events.length === 0) {
@@ -75,6 +82,14 @@ export function KeystrokeDataDisplay({
   async function handleStressFormSubmit(stressData: StressWorkloadData) {
     setShowStressForm(false);
     setPostSurveyCompleted(true);
+    setStressPrediction(null);
+    if (events.length === 0) {
+      setSaveStatus('error');
+      alert(
+        'No keystroke events were captured for this test, so data was not saved. Please complete the test again in the same session and click End Test once.'
+      );
+      return;
+    }
     
     try {
       setIsSaving(true);
@@ -96,26 +111,14 @@ export function KeystrokeDataDisplay({
         challengeId: ev.challengeId,
       }));
 
-      console.log(`Saving ${enrichedEvents.length} keystroke events for session ${sessionId}...`);
+      console.log(`Saving ${enrichedEvents.length} keystroke events for session ${resolvedSessionId}...`);
       
       // Save keystroke data
       const keystrokeRes = await saveKeystrokesNoAuth(enrichedEvents);
       console.log(`✅ Successfully saved ${keystrokeRes.count} keystroke events!`);
 
-      if (
-        sessionId &&
-        (testType === 'free' || testType === 'timed' || testType === 'multitasking')
-      ) {
-        await saveFormSnapshot({
-          sessionId,
-          testType,
-          formSnapshot: submittedFormSnapshot,
-        });
-        console.log(`✅ Successfully saved submitted form snapshot for ${testType}!`);
-      }
-
       // Save stress/workload data
-      await saveStressWorkload(sessionId || '', testType, stressData);
+      await saveStressWorkload(resolvedSessionId, testType, stressData);
       console.log(`✅ Successfully saved stress/workload data!`);
 
       if (getActiveTypingTime && (testType === 'free' || testType === 'timed' || testType === 'multitasking')) {
@@ -125,7 +128,7 @@ export function KeystrokeDataDisplay({
           
           if (activeTime > 0) {
             await saveTimings({
-              sessionId: sessionId || '',
+              sessionId: resolvedSessionId,
               testType: testType as 'free' | 'timed' | 'multitasking',
               timing: activeTime,
             });
@@ -139,6 +142,54 @@ export function KeystrokeDataDisplay({
         }
       } else {
         console.warn('⚠️ getActiveTypingTime function not available or test type not supported for timing');
+      }
+
+      let predictionResult: StressPredictionResult | null = null;
+      if ((testType === 'timed' || testType === 'multitasking') && resolvedSessionId) {
+        try {
+          predictionResult = await predictStressFromBaseline({
+            sessionId: resolvedSessionId,
+            testType: testType as 'timed' | 'multitasking',
+            currentEvents: enrichedEvents,
+          });
+          setStressPrediction(predictionResult);
+          console.log(`🧠 Stress prediction: ${predictionResult.status}`);
+        } catch (predictionError) {
+          console.error('❌ Error while predicting stress:', predictionError);
+          setStressPrediction({
+            status: 'insufficient_data',
+            reason:
+              predictionError instanceof Error
+                ? `Stress prediction unavailable: ${predictionError.message}`
+                : 'Stress prediction could not be computed for this submission.',
+          });
+        }
+      }
+
+      const snapshotWithBaseline =
+        testType === 'free'
+          ? {
+              ...submittedFormSnapshot,
+              keystroke_baseline_metrics: computeModelMetricsFromEvents(enrichedEvents),
+            }
+          : submittedFormSnapshot;
+
+      if (
+        resolvedSessionId &&
+        (testType === 'free' || testType === 'timed' || testType === 'multitasking')
+      ) {
+        await saveFormSnapshot({
+          sessionId: resolvedSessionId,
+          testType,
+          formSnapshot:
+            predictionResult && (testType === 'timed' || testType === 'multitasking')
+              ? {
+                  ...snapshotWithBaseline,
+                  stress_prediction: predictionResult,
+                }
+              : snapshotWithBaseline,
+        });
+        console.log(`✅ Successfully saved submitted form snapshot for ${testType}!`);
       }
 
       // Validate transcription and calculate penalty (use the paragraph that was actually shown)
@@ -171,7 +222,7 @@ export function KeystrokeDataDisplay({
               testType: 'timed',
               score: finalScore,
               timeTaken,
-              sessionId: sessionId || '',
+              sessionId: resolvedSessionId,
             });
             console.log(`✅ Saved leaderboard entry for timed test: ${finalScore} pts, ${timeTaken}s (score: ${finalScore} after transcription penalty)`);
           } else if (testType === 'multitasking') {
@@ -184,7 +235,7 @@ export function KeystrokeDataDisplay({
               userName,
               testType: 'multitasking',
               score: finalScore,
-              sessionId: sessionId || '',
+              sessionId: resolvedSessionId,
             });
             console.log(`✅ Saved leaderboard entry for multitasking test: ${finalScore} points (${baseScore} - ${transcriptionPenalty} transcription penalty)`);
           }
@@ -309,6 +360,38 @@ export function KeystrokeDataDisplay({
               currentTime={currentTime}
               sessionId={sessionId}
             />
+          )}
+
+          {(testType === 'timed' || testType === 'multitasking') && stressPrediction && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Stress Prediction (vs free baseline)
+              </h3>
+              {stressPrediction.baselineModel && stressPrediction.changeOnlyModel ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-900">
+                    <span className="font-semibold">Stress with respect to baseline:</span>{' '}
+                    {stressPrediction.baselineModel.status === 'stressed' ? 'Stressed' : 'Not stressed'}{' '}
+                    ({(stressPrediction.baselineModel.confidence * 100).toFixed(0)}%)
+                  </p>
+                  <p className="text-sm text-gray-900">
+                    <span className="font-semibold">Stress with respect to baseline (%change):</span>{' '}
+                    {stressPrediction.changeOnlyModel.status === 'stressed' ? 'Stressed' : 'Not stressed'}{' '}
+                    ({(stressPrediction.changeOnlyModel.confidence * 100).toFixed(0)}%)
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="text-lg font-semibold text-gray-900">
+                    {stressPrediction.status === 'stressed' && 'Stressed'}
+                    {stressPrediction.status === 'not_stressed' && 'Not stressed'}
+                    {stressPrediction.status === 'no_baseline' && 'No baseline found'}
+                    {stressPrediction.status === 'insufficient_data' && 'Insufficient data'}
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">{stressPrediction.reason}</p>
+                </>
+              )}
+            </div>
           )}
 
           {/* Data Deep Dive: Total events, Avg speed, Test duration + optional table */}

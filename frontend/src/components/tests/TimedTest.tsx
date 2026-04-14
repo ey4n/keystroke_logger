@@ -63,7 +63,7 @@ export function TimedTest({ sessionId, onTestDataUpdate }: TimedTestProps) {
     getLogs, 
     getAnalytics,
     setFieldName
-  } = useKeystrokeLogger();
+  } = useKeystrokeLogger(sessionId);
 
   // Initialize active typing timer
   const typingTimer = useActiveTypingTimer();

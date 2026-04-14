@@ -101,7 +101,9 @@ export function MultitaskingTest({ sessionId, onTestDataUpdate }: MultitaskingTe
     logInputFallback,
     setFieldName, setActiveChallenge,
     clearLogs, getLogs, getAnalytics,
-  } = useKeystrokeLogger();
+  } = useKeystrokeLogger(sessionId);
+
+  const typingTimer = useActiveTypingTimer();
 
   const typingTimer = useActiveTypingTimer();
 

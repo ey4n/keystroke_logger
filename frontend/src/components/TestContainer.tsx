@@ -43,20 +43,22 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
 
   // Use provided sessionId or generate one
   useEffect(() => {
-    if (propSessionId) {
+    // If parent manages session id, wait until it is ready instead of generating a competing id.
+    if (propSessionId !== undefined) {
+      if (!propSessionId) return;
       setSessionId(propSessionId);
       sessionStorage.setItem('session_id', propSessionId);
-    } else {
-      const stored = sessionStorage.getItem('session_id');
-      if (stored) {
-        setSessionId(stored);
-      } else {
-        const id = globalThis.crypto?.randomUUID?.() ?? `sess_${Date.now()}`;
-        setSessionId(id);
-        sessionStorage.setItem('session_id', id);
-      }
+      return;
     }
-    console.log('Session started:', sessionId || propSessionId);
+
+    const stored = sessionStorage.getItem('session_id');
+    if (stored) {
+      setSessionId(stored);
+    } else {
+      const id = globalThis.crypto?.randomUUID?.() ?? `sess_${Date.now()}`;
+      setSessionId(id);
+      sessionStorage.setItem('session_id', id);
+    }
   }, [propSessionId]);
 
   // Generate new session when requested - clears consent and reloads page
@@ -106,6 +108,16 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
   const handleTestDataUpdate = useCallback((dataFunctions: any) => {
   setTestDataRef(prev => (prev === dataFunctions ? prev : dataFunctions));
 }, []);
+
+  if (!sessionId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/30 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-md border border-indigo-100 px-6 py-5 text-gray-700">
+          Initializing session...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-purple-50/30">

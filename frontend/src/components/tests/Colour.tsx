@@ -63,6 +63,16 @@ export function ColourTest({ sessionId, onTestDataUpdate }: ColourTestProps) {
   const filledFields = allQuestionIds.filter(id => formData[id]?.trim() !== '').length;
   const completionPercentage = totalFields > 0 ? Math.round((filledFields / totalFields) * 100) : 0;
 
+  const allQuestionIdsArray = useMemo(
+    () => allQuestionIds.map(String).filter((id) => id !== 'fullName'),
+    [allQuestionIds],
+  );
+
+  const spellingSummary = useMemo(
+    () => computeFormSpellingSummary(formData as any, allQuestionIdsArray),
+    [formData, allQuestionIdsArray],
+  );
+
   // Update parent with current data
   useEffect(() => {
     onTestDataUpdate({
