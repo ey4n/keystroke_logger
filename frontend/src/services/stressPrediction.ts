@@ -66,11 +66,16 @@ function buildFeaturePayload(
     const change = current - baseline;
     const pctChange = computePercentChange(current, baseline);
 
+    // Keep legacy keys for debug visibility.
     payload[String(metric)] = round2(current);
     payload[`current_${String(metric)}`] = round2(current);
     payload[`baseline_${String(metric)}`] = round2(baseline);
     payload[`change_${String(metric)}`] = round2(change);
     payload[`pct_change_${String(metric)}`] = round2(pctChange);
+
+    // Model-expected keys (must match pickle feature_names exactly).
+    payload[`${String(metric)}_baseline`] = round2(baseline);
+    payload[`${String(metric)}_change`] = round2(change);
   }
 
   return payload;
