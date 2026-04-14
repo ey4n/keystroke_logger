@@ -9,6 +9,8 @@ import { saveLeaderboardEntry } from '../services/saveLeaderboard';
 import { saveTimings } from '../services/saveTimings';
 import { Leaderboard } from './Leaderboard';
 import { getTranscriptionPenaltyDetails, getTranscriptionErrorExplanation } from '../utils/transcriptionValidation';
+import { computeStressMetricsFromEvents } from '../utils/stressMetrics';
+import { predictStressForSession, StressPredictionBundle } from '../services/stressPrediction';
 
 interface KeystrokeDataDisplayProps {
   events: KeystrokeEvent[];
@@ -48,6 +50,26 @@ export function KeystrokeDataDisplay({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [showStressForm, setShowStressForm] = useState(false);
   const [postSurveyCompleted, setPostSurveyCompleted] = useState(false);
+  const [stressPrediction, setStressPrediction] = useState<StressPredictionBundle | null>(null);
+  const [stressPredictionError, setStressPredictionError] = useState<string | null>(null);
+  const effectiveSessionId = sessionId || events[0]?.sessionId || '';
+
+  useEffect(() => {
+    const snapshotPrediction =
+      formData?.stress_prediction ?? formData?.formSnapshot?.stress_prediction ?? null;
+    const snapshotPredictionError =
+      formData?.stress_prediction_error ?? formData?.formSnapshot?.stress_prediction_error ?? null;
+
+    if (snapshotPrediction) {
+      setStressPrediction(snapshotPrediction as StressPredictionBundle);
+      setStressPredictionError(null);
+      return;
+    }
+    if (snapshotPredictionError) {
+      setStressPrediction(null);
+      setStressPredictionError(String(snapshotPredictionError));
+    }
+  }, [formData]);
 
   // When user submits post-survey, tell parent to hide full-screen overlay and show data in flow
   useEffect(() => {
@@ -79,7 +101,7 @@ export function KeystrokeDataDisplay({
     try {
       setIsSaving(true);
       setSaveStatus('idle');
-      const submittedFormSnapshot = extractSubmittedFormSnapshot(formData);
+      const submittedFormSnapshot = extractSubmittedFormSnapshot(formData) as Record<string, any>;
 
       // Map events to match the database schema and saveKeystrokes function
       const enrichedEvents = events.map((ev) => ({
@@ -88,7 +110,7 @@ export function KeystrokeDataDisplay({
         pressed_at: ev.timestamp,
         timestamp: ev.timestamp,
         code: ev.code,
-        sessionId: sessionId || ev.sessionId, // Use sessionId from props first
+        sessionId: effectiveSessionId || ev.sessionId,
         testType: testType, 
         deviceInfo: ev.deviceInfo,
         fieldName: ev.fieldName,
@@ -96,18 +118,39 @@ export function KeystrokeDataDisplay({
         challengeId: ev.challengeId,
       }));
 
-      console.log(`Saving ${enrichedEvents.length} keystroke events for session ${sessionId}...`);
+      console.log(`Saving ${enrichedEvents.length} keystroke events for session ${effectiveSessionId}...`);
       
       // Save keystroke data
       const keystrokeRes = await saveKeystrokesNoAuth(enrichedEvents);
       console.log(`✅ Successfully saved ${keystrokeRes.count} keystroke events!`);
 
+      if (testType === 'free') {
+        submittedFormSnapshot.keystroke_baseline_metrics = computeStressMetricsFromEvents(events);
+      }
+
+      if (effectiveSessionId && (testType === 'timed' || testType === 'multitasking')) {
+        try {
+          const prediction = await predictStressForSession(effectiveSessionId, testType, events);
+          submittedFormSnapshot.stress_prediction = prediction;
+          setStressPrediction(prediction);
+          setStressPredictionError(null);
+        } catch (predictionError) {
+          console.error('❌ Stress prediction failed:', predictionError);
+          const message =
+            predictionError instanceof Error ? predictionError.message : String(predictionError);
+          submittedFormSnapshot.stress_prediction_error =
+            message;
+          setStressPrediction(null);
+          setStressPredictionError(message);
+        }
+      }
+
       if (
-        sessionId &&
+        effectiveSessionId &&
         (testType === 'free' || testType === 'timed' || testType === 'multitasking')
       ) {
         await saveFormSnapshot({
-          sessionId,
+          sessionId: effectiveSessionId,
           testType,
           formSnapshot: submittedFormSnapshot,
         });
@@ -115,7 +158,7 @@ export function KeystrokeDataDisplay({
       }
 
       // Save stress/workload data
-      await saveStressWorkload(sessionId || '', testType, stressData);
+      await saveStressWorkload(effectiveSessionId, testType, stressData);
       console.log(`✅ Successfully saved stress/workload data!`);
 
       if (getActiveTypingTime && (testType === 'free' || testType === 'timed' || testType === 'multitasking')) {
@@ -125,7 +168,7 @@ export function KeystrokeDataDisplay({
           
           if (activeTime > 0) {
             await saveTimings({
-              sessionId: sessionId || '',
+              sessionId: effectiveSessionId,
               testType: testType as 'free' | 'timed' | 'multitasking',
               timing: activeTime,
             });
@@ -171,7 +214,7 @@ export function KeystrokeDataDisplay({
               testType: 'timed',
               score: finalScore,
               timeTaken,
-              sessionId: sessionId || '',
+              sessionId: effectiveSessionId,
             });
             console.log(`✅ Saved leaderboard entry for timed test: ${finalScore} pts, ${timeTaken}s (score: ${finalScore} after transcription penalty)`);
           } else if (testType === 'multitasking') {
@@ -184,7 +227,7 @@ export function KeystrokeDataDisplay({
               userName,
               testType: 'multitasking',
               score: finalScore,
-              sessionId: sessionId || '',
+              sessionId: effectiveSessionId,
             });
             console.log(`✅ Saved leaderboard entry for multitasking test: ${finalScore} points (${baseScore} - ${transcriptionPenalty} transcription penalty)`);
           }
@@ -310,6 +353,34 @@ export function KeystrokeDataDisplay({
               sessionId={sessionId}
             />
           )}
+
+          {(testType === 'timed' || testType === 'multitasking') &&
+            (stressPrediction || stressPredictionError) && (
+              <div className="p-5 rounded-xl bg-indigo-50/80 border border-indigo-200">
+                <h3 className="text-xs font-semibold text-indigo-700 uppercase tracking-wide mb-3">
+                  Stress prediction
+                </h3>
+                {stressPrediction && (
+                  <div className="text-sm text-gray-900 space-y-2">
+                    <p>
+                      <span className="font-semibold">Stress with respect to baseline:</span>{' '}
+                      {stressPrediction.with_respect_to_baseline.label} (
+                      {(stressPrediction.with_respect_to_baseline.probability * 100).toFixed(1)}%)
+                    </p>
+                    <p>
+                      <span className="font-semibold">Stress with respect to baseline (%change):</span>{' '}
+                      {stressPrediction.with_respect_to_baseline_change_only.label} (
+                      {(stressPrediction.with_respect_to_baseline_change_only.probability * 100).toFixed(1)}%)
+                    </p>
+                  </div>
+                )}
+                {!stressPrediction && stressPredictionError && (
+                  <p className="text-sm text-amber-800">
+                    Stress prediction unavailable: {stressPredictionError}
+                  </p>
+                )}
+              </div>
+            )}
 
           {/* Data Deep Dive: Total events, Avg speed, Test duration + optional table */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

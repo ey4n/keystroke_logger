@@ -61,8 +61,10 @@ export default function TestContainer({ consentData, sessionId: propSessionId }:
 
   // Generate new session when requested - clears consent and reloads page
   const regenerateSession = () => {
-    // Clear consent from sessionStorage
+    // Clear consent + prior session identity so mount creates a brand-new session id
     sessionStorage.removeItem('keystroke_consent');
+    sessionStorage.removeItem('session_id');
+    sessionStorage.removeItem('keystroke_test_state');
     // Reload page to show consent form again
     window.location.reload();
   };
