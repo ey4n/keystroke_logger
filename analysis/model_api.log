@@ -45,3 +45,9 @@ INFO:     127.0.0.1:54864 - "POST /predict HTTP/1.1" 200 OK
   warnings.warn(
 INFO:     127.0.0.1:54935 - "POST /predict HTTP/1.1" 200 OK
 INFO:     127.0.0.1:54934 - "POST /predict HTTP/1.1" 200 OK
+/Users/paramsrini/keystroke_logger/.venv-model/lib/python3.11/site-packages/sklearn/base.py:439: UserWarning: X does not have valid feature names, but StandardScaler was fitted with feature names
+  warnings.warn(
+/Users/paramsrini/keystroke_logger/.venv-model/lib/python3.11/site-packages/sklearn/base.py:439: UserWarning: X does not have valid feature names, but StandardScaler was fitted with feature names
+  warnings.warn(
+INFO:     127.0.0.1:61444 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61443 - "POST /predict HTTP/1.1" 200 OK
