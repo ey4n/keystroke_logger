@@ -1,0 +1,8 @@
+Before deploying the model API, copy your trained pickles into this folder with these exact names:
+
+  stress_model_baseline.pkl
+  stress_model_change_only.pkl
+
+They must match the artifact format expected by stress_model_api.py (keys: classifier, scaler, feature_names).
+
+If these files are missing, /health and /predict will fail.

@@ -1,0 +1,24 @@
+Deploy the stress model API on Render (live predictions for Timed / Multitasking)
+
+1) Put your trained pickles in analysis/models/ with these names:
+     stress_model_baseline.pkl
+     stress_model_change_only.pkl
+   (Same format as before: classifier, scaler, feature_names inside each pickle.)
+
+2) Commit and push to GitHub.
+
+3) On render.com — either:
+   A) New + Blueprint — connect the repo and use the root render.yaml (creates Web Service "stress-model-api"), OR
+   B) New + Web Service — Docker — Root Directory can stay repo root; Dockerfile Path: analysis/Dockerfile; Docker build context: analysis
+
+4) After deploy, open the service URL + /health in a browser. You should see status "ok" and feature counts. If it errors, the pickles are missing or paths are wrong.
+
+5) On your Next.js Web Service (the frontend), add environment variable:
+     STRESS_MODEL_API_URL = https://<stress-model-service-name>.onrender.com
+   No trailing slash. Redeploy the frontend.
+
+6) Optional on the model service: STRESS_MODEL_CORS_ORIGINS = https://<your-frontend>.onrender.com
+   Only needed if the browser calls the model URL directly (NEXT_PUBLIC_STRESS_MODEL_API_URL).
+   If you only use the Next /api/stress-predict proxy, CORS on the model is not required for predictions.
+
+Free tier: the model service spins down after idle; first request after sleep can take ~30–60s.

@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  // Static export: build writes to `out/`. Set Render Publish Directory to `out`.
+  // Node server (`next start`): API routes and SSR work. Do not use `output: 'export'` for that.
 };
 
 export default nextConfig;

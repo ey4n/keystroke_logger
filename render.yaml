@@ -1,11 +1,18 @@
-# Render Blueprint: Next.js app lives in frontend/
+# Render Blueprint: deploy the FastAPI stress model as its own Web Service.
 # https://render.com/docs/blueprint-spec
+#
+# After this service is live, copy its public URL (https://<name>.onrender.com) and set on your
+# Next.js Web Service: STRESS_MODEL_API_URL=https://<name>.onrender.com
+# (no trailing slash; the Next route appends /predict)
+
 services:
   - type: web
-    name: keystroke-logger
-    runtime: node
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    startCommand: npm run start
-    # No publishDirectory: this is a Node.js Web Service (next start), not a static site.
-    # If your dashboard has "Publish directory" set to "build", clear it.
+    name: stress-model-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./analysis/Dockerfile
+    dockerContext: ./analysis
+    healthCheckPath: /health
+    envVars:
+      - key: STRESS_MODEL_CORS_ORIGINS
+        sync: false
