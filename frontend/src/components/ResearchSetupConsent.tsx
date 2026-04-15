@@ -69,16 +69,17 @@ export function ResearchSetupConsent({ onContinue }: ResearchSetupConsentProps) 
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      {/* Subtle dotted background */}
+    <div className="relative z-0 min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      {/* Subtle dotted background — absolute (not fixed) so it cannot steal stacking/hit-testing from the card */}
       <div
-        className="fixed inset-0 opacity-40 pointer-events-none"
+        className="absolute inset-0 z-0 opacity-40 pointer-events-none"
+        aria-hidden
         style={{
           backgroundImage: 'radial-gradient(circle, #9ca3af 1px, transparent 1px)',
           backgroundSize: '20px 20px',
         }}
       />
-      <div className="relative max-w-lg w-full bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+      <div className="relative z-10 max-w-lg w-full bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
         {/* Header */}
         <div className="pt-8 pb-2 px-6 text-center">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-purple-100 text-purple-600 mb-3 [&_svg]:block [&_svg]:m-auto">
@@ -203,24 +204,25 @@ export function ResearchSetupConsent({ onContinue }: ResearchSetupConsentProps) 
               </span>
               <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Consent</span>
             </div>
-            <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 bg-gray-50">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={consentGiven}
+              onClick={() => setConsentGiven((c) => !c)}
+              className={`flex w-full items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 bg-gray-50 text-left cursor-pointer touch-manipulation min-h-[52px] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${consentGiven ? 'ring-1 ring-purple-200' : ''}`}
+            >
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-900">Participation Agreement</p>
                 <p className="text-sm text-gray-500 mt-0.5">I agree to data collection</p>
                 {errors.consent && <p className="text-red-600 text-sm mt-1">{errors.consent}</p>}
               </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={consentGiven}
-                onClick={() => setConsentGiven((c) => !c)}
-                className={`flex-shrink-0 w-12 h-7 rounded-full p-0.5 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 flex items-center ${consentGiven ? 'bg-purple-600 justify-end' : 'bg-gray-300 justify-start'}`}
+              <span
+                aria-hidden
+                className={`flex-shrink-0 w-14 h-8 rounded-full p-1 transition-colors duration-200 flex items-center ${consentGiven ? 'bg-purple-600 justify-end' : 'bg-gray-300 justify-start'}`}
               >
-                <span
-                  className="block w-5 h-5 rounded-full bg-white shadow shrink-0 transition-transform duration-200"
-                />
-              </button>
-            </div>
+                <span className="block w-6 h-6 rounded-full bg-white shadow shrink-0 transition-transform duration-200" />
+              </span>
+            </button>
           </div>
 
           <button
