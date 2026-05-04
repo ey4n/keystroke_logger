@@ -20,9 +20,7 @@ export default function RootLayout({
         <meta name="description" content="Web site created with Next.js" />
         <title>React App</title>
       </head>
-      <body>
-        <div id="root">{children}</div>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

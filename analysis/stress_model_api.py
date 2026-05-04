@@ -1,6 +1,7 @@
 import os
 import pickle
 from functools import lru_cache
+from pathlib import Path
 from typing import Dict, Literal
 
 import numpy as np
@@ -10,8 +11,12 @@ from pydantic import BaseModel, Field
 
 ModelName = Literal["baseline", "change_only"]
 
-DEFAULT_BASELINE_MODEL_PATH = "/Users/paramsrini/Downloads/stress_model_baseline.pkl"
-DEFAULT_CHANGE_ONLY_MODEL_PATH = "/Users/paramsrini/Downloads/stress_model_change_only.pkl"
+_ANALYSIS_DIR = Path(__file__).resolve().parent
+_DEFAULT_MODEL_DIR = _ANALYSIS_DIR / "models"
+
+# Defaults work locally and in Docker when you place pickles under analysis/models/
+DEFAULT_BASELINE_MODEL_PATH = str(_DEFAULT_MODEL_DIR / "stress_model_baseline.pkl")
+DEFAULT_CHANGE_ONLY_MODEL_PATH = str(_DEFAULT_MODEL_DIR / "stress_model_change_only.pkl")
 
 
 class PredictRequest(BaseModel):
@@ -29,14 +34,15 @@ class PredictResponse(BaseModel):
 
 app = FastAPI(title="Stress Model API", version="1.0.0")
 
-# Allow browser calls from Next.js dev server (avoids opaque "Failed to fetch" when testing direct URL).
-_cors = os.getenv(
-    "STRESS_MODEL_CORS_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001",
+# Browser direct calls (NEXT_PUBLIC_STRESS_MODEL_API_URL) need CORS. Next.js /api/stress-predict proxy does not.
+_default_cors = (
+    "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
 )
+_cors = os.getenv("STRESS_MODEL_CORS_ORIGINS", _default_cors)
+_cors_origins = [o.strip() for o in _cors.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip() for o in _cors.split(",") if o.strip()],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

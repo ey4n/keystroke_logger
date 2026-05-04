@@ -69,16 +69,17 @@ export function ResearchSetupConsent({ onContinue }: ResearchSetupConsentProps) 
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      {/* Subtle dotted background */}
+    <div className="relative z-0 min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      {/* Subtle dotted background — absolute (not fixed) so it cannot steal stacking/hit-testing from the card */}
       <div
-        className="fixed inset-0 opacity-40 pointer-events-none"
+        className="absolute inset-0 z-0 opacity-40 pointer-events-none"
+        aria-hidden
         style={{
           backgroundImage: 'radial-gradient(circle, #9ca3af 1px, transparent 1px)',
           backgroundSize: '20px 20px',
         }}
       />
-      <div className="relative max-w-lg w-full bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+      <div className="relative z-10 max-w-lg w-full overflow-visible rounded-2xl border border-gray-200 bg-white shadow-xl">
         {/* Header */}
         <div className="pt-8 pb-2 px-6 text-center">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-purple-100 text-purple-600 mb-3 [&_svg]:block [&_svg]:m-auto">
@@ -193,33 +194,40 @@ export function ResearchSetupConsent({ onContinue }: ResearchSetupConsentProps) 
             </div>
           </div>
 
-          {/* Consent */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-600 shrink-0 [&_svg]:block [&_svg]:m-auto">
+          {/* Consent: sibling id + htmlFor (works reliably in prod Safari / touch; avoid overflow-hidden on card clipping hits) */}
+          <div className="pointer-events-auto">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-600 [&_svg]:m-auto [&_svg]:block">
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               </span>
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Consent</span>
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">Consent</span>
             </div>
-            <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-gray-200 bg-gray-50">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900">Participation Agreement</p>
-                <p className="text-sm text-gray-500 mt-0.5">I agree to data collection</p>
-                {errors.consent && <p className="text-red-600 text-sm mt-1">{errors.consent}</p>}
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={consentGiven}
-                onClick={() => setConsentGiven((c) => !c)}
-                className={`flex-shrink-0 w-12 h-7 rounded-full p-0.5 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 flex items-center ${consentGiven ? 'bg-purple-600 justify-end' : 'bg-gray-300 justify-start'}`}
-              >
-                <span
-                  className="block w-5 h-5 rounded-full bg-white shadow shrink-0 transition-transform duration-200"
+
+            <div
+              className={`flex w-full items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:gap-4 ${consentGiven ? 'ring-1 ring-purple-200' : ''}`}
+            >
+              {/* Wrapper keeps ~44px touch target without forcing a huge native checkbox paint */}
+              <div className="relative z-30 flex shrink-0 items-center justify-center p-2 [-webkit-tap-highlight-color:transparent]">
+                <input
+                  id="keystroke-research-consent"
+                  type="checkbox"
+                  checked={consentGiven}
+                  onChange={(e) => setConsentGiven(e.target.checked)}
+                  className="h-6 w-6 cursor-pointer accent-purple-600 sm:h-5 sm:w-5"
                 />
-              </button>
+              </div>
+              <label
+                htmlFor="keystroke-research-consent"
+                className="min-w-0 flex-1 cursor-pointer touch-manipulation py-1 text-left text-base leading-snug"
+              >
+                <span className="font-medium text-gray-900">Participation Agreement</span>
+                <span className="mt-1 block text-sm text-gray-500">
+                  I agree to data collection for this study. Tap the square or this text, then continue.
+                </span>
+                {errors.consent && <span className="mt-2 block text-sm text-red-600">{errors.consent}</span>}
+              </label>
             </div>
           </div>
 
