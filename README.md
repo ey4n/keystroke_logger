@@ -111,7 +111,7 @@ Useful environment variables:
 
 ## Documentation
 
-- [FRONTEND_OVERVIEW.md](./FRONTEND_OVERVIEW.md)
+- [DATA_COLLECTION.md](./DATA_COLLECTION.md)
 - [MODEL_OVERVIEW.md](./MODEL_OVERVIEW.md)
 - [analysis/README_analysis.md](./analysis/README_analysis.md)
 - [DEPLOY.md](./DEPLOY.md)
