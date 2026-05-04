@@ -1,63 +1,117 @@
-# Keystroke Dynamics Data Collection System
-Built with Next.js and Supabase.
+# Keystroke Logger
+
+This repository contains a keystroke-based stress research system with two main parts:
+
+- a participant-facing frontend website built with Next.js
+- a backend stress model API built with FastAPI
+
+The frontend collects consent, runs typing tasks, captures keystroke dynamics, saves research data to Supabase, and requests stress predictions from the model service.
+
+## Main Components
+
+### Data Collection Website
+
+The website lives in `frontend/` and handles:
+
+- participant consent
+- session management
+- typing tests
+- keystroke logging
+- Supabase data saving
+- prediction requests to the model API
+
+Detailed doc:
+
+- [DATA_COLLECTION.md](./DATA_COLLECTION.md)
+
+### Stress Model API
+
+The model service lives in `analysis/` and handles:
+
+- loading trained pickle models
+- health checks
+- feature-based stress prediction
+- local or deployed API serving
+
+Detailed doc:
+
+- [MODEL_OVERVIEW.md](./MODEL_OVERVIEW.md)
+
+## Repo Structure
+
+```text
+keystroke_logger/
+├── frontend/                  # Next.js website
+├── analysis/                  # Python model API and analysis code
+├── DATA_COLLECTION.md       # Frontend documentation
+├── MODEL_OVERVIEW.md          # Model documentation
+├── DEPLOY.md
+└── render.yaml
+```
 
 ## Quick Start
 
-### Installation & Running
+### Run the Frontend
 
-```
+```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-## Data Collection Guide
+Frontend URL:
 
-1. **Begin a Test Session**
-   - A unique session ID is automatically generated when you load the page
-   - This session ID tracks all your keystrokes for the current session
+- `http://localhost:3000`
 
-2. **Start Typing**
-   - All keystrokes (key presses and releases) are captured automatically
-   - Each keystroke is tagged with:
-     - Session ID
-     - Test type (free, timed, multitasking)
-     - Field name (which question you're answering)
-     - Timestamp and timing metrics
+### Run the Model API
 
-3. **Review Your Data** 
-   - Click **"Show All Data"** to see captured keystrokes in real-time
+```bash
+cd analysis
+pip install -r model_api_requirements.txt
+uvicorn stress_model_api:app --reload --port 8000
+```
 
-4. **Save Your Data** **PLEASE SAVE BEFORE YOU SWITCH OUT**
-   - Click **"Save to Supabase"** to save your data to the database
-   - **PLEASE SAVE BEFORE SWITCHING TESTS OR RELOADING** sorry this is a bad design on my end i will fix it soon
+Model API URL:
 
-5. **Switch Tests**
-   - Select a different test type from the test selector
-   - **Do not reload the page in order to retain your session id** another slightly bad design sorry
+- `http://127.0.0.1:8000`
 
+Health check:
 
-### TLDR
-> **🚨 If you reload the page, all unsaved data will be lost and a new session will start.**
+- `http://127.0.0.1:8000/health`
 
+## High-Level Flow
 
-## 🗄️ Database Schema
+1. A participant opens the frontend website.
+2. The app creates a session and collects consent.
+3. The participant completes typing tasks.
+4. Keystroke and survey-related data are saved to Supabase.
+5. The frontend computes stress-related features.
+6. The frontend sends a prediction request to the model API.
+7. The model API returns stress probabilities and labels.
 
-Data is stored in Supabase with the following structure:
+## Prediction Integration
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | bigint | Auto-generated unique identifier |
-| `key` | text | The key pressed (e.g., "a", "Enter") |
-| `pressed_at` | timestamp | When the key was pressed |
-| `session_id` | uuid | Unique session identifier |
-| `test_type` | text | Type of test (free, timed, multitasking) |
-| `event_type` | text | "keydown" or "keyup" |
-| `device_info` | text | Browser user agent string |
-| `form_snapshot` | jsonb | Form state at time of keystroke |
-| `field_name` | text | Which field was being filled (e.g., "email", "morningRoutine") |
-| `meta` | jsonb | Additional metadata (key code, elapsed time, challenge ID) |
+The frontend uses:
 
-## Things that are still wonky  
-- multitasking test -> save the time when the challenge is given so that we can monitor if there is a difference at that specific time
-- sorry the reloading thing may be quite annoying lawl
-- the stupid questions... will change soon
+- `frontend/src/app/api/stress-predict/route.ts`
+
+This proxy forwards prediction requests to the model service and avoids browser CORS issues in the default setup.
+
+Useful environment variables:
+
+- `STRESS_MODEL_API_URL`
+- `NEXT_PUBLIC_STRESS_MODEL_API_URL`
+- `STRESS_MODEL_CORS_ORIGINS`
+
+## Notes
+
+- The trained model pickle files are expected in `analysis/models/`.
+- The frontend prediction flow depends on a saved free-typing baseline for the same session.
+- The repo includes deployment files for Render under `render.yaml` and `analysis/Dockerfile`.
+
+## Documentation
+
+- [FRONTEND_OVERVIEW.md](./FRONTEND_OVERVIEW.md)
+- [MODEL_OVERVIEW.md](./MODEL_OVERVIEW.md)
+- [analysis/README_analysis.md](./analysis/README_analysis.md)
+- [DEPLOY.md](./DEPLOY.md)
